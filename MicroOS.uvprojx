@@ -383,7 +383,7 @@
             <File>
               <FileName>MicroOS.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Objects\MicroOS.c</FilePath>
+              <FilePath>.\MicroOS.c</FilePath>
             </File>
           </Files>
         </Group>
