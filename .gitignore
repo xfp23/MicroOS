@@ -1,0 +1,33 @@
+# Keil uVision project ignore rules
+# 忽略编译生成的文件和临时文件
+*.uvoptx
+*.uvguix.*
+*.lnp
+*.bak
+*.dep
+*.htm
+*.map
+*.sct
+*.crf
+*.d
+*.o
+*.lib
+*.lst
+*.plg
+*.iex
+*.tra
+*.hex
+*.elf
+*.bin
+*.axf
+*.log
+*.tmp
+*.aps
+*.uvproj.bak
+
+# 忽略输出文件夹
+Objects/
+Listings/
+
+# 忽略VS Code配置
+.vscode/
