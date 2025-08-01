@@ -1,33 +1,13 @@
-# Keil uVision project ignore rules
-# 忽略编译生成的文件和临时文件
-*.uvoptx
-*.uvguix.*
-*.lnp
-*.bak
-*.dep
-*.htm
-*.map
-*.sct
-*.crf
-*.d
-*.o
-*.lib
-*.lst
-*.plg
-*.iex
-*.tra
-*.hex
-*.elf
-*.bin
-*.axf
-*.log
-*.tmp
-*.aps
-*.uvproj.bak
+ArInp.Scr
 
-# 忽略输出文件夹
-Objects/
-Listings/
+# Only keep Keil project files, source files, header files, LICENSE, and readme
+!MicroOS.uvprojx
+!MicroOS.uvoptx
+!MicroOS.uvguix.*
+!*.c
+!*.h
+!LICENSE
+!readme.md
 
-# 忽略VS Code配置
-.vscode/
+# Ignore everything else
+**/*
