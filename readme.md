@@ -24,7 +24,7 @@ Key features:
 * **Fixed-size task table:** Number of tasks defined at compile time with `MICROOS_TASK_NUM`.
 * **Tick-based scheduling:** Driven by a global tick counter incremented in a hardware ISR.
 * **Delay system:** Implemented using static linked list pool (`OS_DELAY_TASKSIZE`).
-* **User-defined frequency:** `MICROOS_FREQ` must match the hardware tick source.
+* **User-defined frequency:** `MICROOS_FREQ_HZ` must match the hardware tick source.
 
 ---
 
@@ -35,20 +35,20 @@ Key features:
 ```c
 #define MICROOS_TASK_NUM    64       // Maximum number of tasks
 #define OS_DELAY_TASKSIZE   32       // Max OSdelay entries
-#define MICROOS_FREQ        1000     // Scheduler tick frequency in Hz (must match hardware timer)
+#define MICROOS_FREQ_HZ        1000     // Scheduler tick frequency in Hz (must match hardware timer)
 ```
 
 ### **3.2 Time Conversion Macros**
 
 ```c
 // Ticks → Milliseconds
-#define OS_TICKS_MS(tick)   ((tick) * (1000 / MICROOS_FREQ))
+#define OS_TICKS_MS(tick)   ((tick) * (1000 / MICROOS_FREQ_HZ))
 
 // Milliseconds → Ticks
-#define OS_MS_TICKS(ms)     ((ms) * (MICROOS_FREQ / 1000))
+#define OS_MS_TICKS(ms)     ((ms) * (MICROOS_FREQ_HZ / 1000))
 ```
 
-*The user must configure `MICROOS_FREQ` to match the timer interrupt frequency (e.g., 1000Hz for 1ms tick).*
+*The user must configure `MICROOS_FREQ_HZ` to match the timer interrupt frequency (e.g., 1000Hz for 1ms tick).*
 
 ---
 
@@ -134,7 +134,7 @@ Starts the cooperative scheduler. Runs in an infinite loop.
 MicroOS_Status_t MicroOS_TickHandler(void);
 ```
 
-Must be called inside the hardware timer ISR every `1/MICROOS_FREQ` seconds to increment `TickCount`.
+Must be called inside the hardware timer ISR every `1/MICROOS_FREQ_HZ` seconds to increment `TickCount`.
 
 ---
 
@@ -195,7 +195,7 @@ int main(void) {
 
 ```c
 void SysTick_Handler(void) {
-    MicroOS_TickHandler();  // Called every 1ms if MICROOS_FREQ = 1000
+    MicroOS_TickHandler();  // Called every 1ms if MICROOS_FREQ_HZ = 1000
 }
 ```
 
