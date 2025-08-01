@@ -11,7 +11,7 @@ static void MicroOS_OSdelay_Init(void);
 
 static void MicroOS_OSdelay_Tick(void);
 
-MicroOS_Handle_t MicroOS_handle = &MicroOS;
+MicroOS_Handle_t const MicroOS_handle = &MicroOS;
 
 MicroOS_Status_t MicroOS_Init()
 {

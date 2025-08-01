@@ -26,7 +26,7 @@ extern "C"
 // MicroOS version
 #define MICROOS_VERSION_MAJOR "0.0.3"
 
-#define MICROOS_TASK_NUM (64) // Maximum number of tasks supported
+#define MICROOS_TASK_NUM (10) // Maximum number of tasks supported
 #define OS_DELAY_TASKSIZE (32) // Maximum number of delay tasks supported
 
 // Null pointer check macro
@@ -151,7 +151,7 @@ typedef volatile MicroOS_t *MicroOS_Handle_t;
  * @brief MicroOS main instance handle
  * @note This is the only instance of MicroOS; all tasks run in this instance.
  */
-extern MicroOS_Handle_t MicroOS_handle;
+extern MicroOS_Handle_t const MicroOS_handle;
 
 /**
  * @brief Initialize the MicroOS instance
