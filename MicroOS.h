@@ -11,6 +11,7 @@
  *       3. No dynamic stack allocation for tasks; static allocation is used due to embedded resource constraints and heap fragmentation issues.
  *       4. To speed up the scheduler, increase the frequency of MicroOS_TickHandler calls in the system clock interrupt.
  *       5. To avoid heap fragmentation caused by OSdelay, a delay task pool is used. To expand the OSdelay task pool size, modify OS_DELAY_TASKSIZE.
+ *       6. Set the frequency of MICROOS_FREQ_HZ according to the time base given to this library
  * @version 0.0.3
  * @date 2025-07-31
  * @copyright Copyright (c) 2025
@@ -25,9 +26,19 @@ extern "C"
 
 // MicroOS version
 #define MICROOS_VERSION_MAJOR "0.0.3"
+	
+// MICROOS FREQ
+#define MICROOS_FREQ_HZ 1000
 
-#define MICROOS_TASK_NUM (10) // Maximum number of tasks supported
+#define MICROOS_TASK_NUM (10)  // Maximum number of tasks supported
 #define OS_DELAY_TASKSIZE (32) // Maximum number of delay tasks supported
+
+// Ticks -> MS
+#define OS_TICKS_MS(tick)   ((tick) * (1000 / MICROOS_FREQ_HZ))
+
+// MS -> Ticks
+#define OS_MS_TICKS(ms)     ((ms) * (MICROOS_FREQ_HZ / 1000))
+
 
 // Null pointer check macro
 #define MICROOS_CHECK_PTR(ptr)    \
@@ -82,15 +93,17 @@ typedef enum
 /**
  * @brief Structure representing a scheduled task
  */
-typedef struct {
-    bool IsUsed; // Indicates if the task is currently in use
-    bool IsRunning; // Indicates if the task is currently running
-    uint32_t Period; // Task period in milliseconds
-    uint32_t LastRunTime; // Last run time in ticks
-    void (*TaskFunction)(void*); // Pointer to the task function
-    void* Userdata; // Pointer to user data
+typedef struct
+{
+    bool IsUsed;                  // Indicates if the task is currently in use
+    bool IsRunning;               // Indicates if the task is currently running
+    bool IsSleeping;              // Indicates if the task is currently sleeping
+    uint32_t SleepTicks;          // Number of ticks the task is sleeping
+    uint32_t Period;              // Task period in milliseconds
+    uint32_t LastRunTime;         // Last run time in ticks
+    void (*TaskFunction)(void *); // Pointer to the task function
+    void *Userdata;               // Pointer to user data
 } MicroOS_Task_t;
-
 
 /**
  * @brief MicroOS main instance structure
@@ -121,10 +134,10 @@ typedef struct MicroOS_OSdelay_Task_t
  *          After the delay is no longer needed, you must call MicroOS_OSdelay_Remove to release the delay task.
  *          See project usage examples for details.
  * @param id Task ID
- * @param ms Delay time in milliseconds
+ * @param Ticks Delay Ticks num  OS_MS_TICKS(ms)
  * @return MicroOS_Status_t Status code
  */
-extern MicroOS_Status_t MicroOS_OSdelay(uint8_t id, uint32_t ms);
+extern MicroOS_Status_t MicroOS_OSdelay(uint8_t id, uint32_t Ticks);
 
 /**
  * @brief Get the delay status of a task
@@ -194,6 +207,16 @@ extern MicroOS_Status_t MicroOS_SuspendTask(uint8_t id);
  * @return MicroOS_Status_t Status code
  */
 extern MicroOS_Status_t MicroOS_ResumeTask(uint8_t id);
+
+/**
+ * @brief 
+ * Task sleep, set the task not to run within the specified time
+ * 
+ * @param id 
+ * @param Ticks Sleep Ticks OS_MS_TICKS(ms)
+ * @return MicroOS_Status_t 
+ */
+extern MicroOS_Status_t MicroOS_SleepTask(uint8_t id,uint32_t Ticks);
 
 /**
  * @brief Delete the task with the specified ID

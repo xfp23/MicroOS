@@ -5,188 +5,228 @@
 
 ## **1. Overview**
 
-`MicroOS` is a lightweight cooperative task scheduler designed for resource-constrained embedded systems. It provides a simple way to manage periodic tasks, basic delays, and task control (suspend, resume, delete) without the complexity of a full RTOS.
+`MicroOS` is a lightweight cooperative task scheduler designed for bare-metal embedded systems with limited resources. It provides a minimal yet flexible API to manage periodic tasks, task delays, and task control without the overhead of a full RTOS.
 
 Key features:
 
-* Single-instance scheduler (all tasks share the same MicroOS instance).
-* Static task table with user-defined IDs (acts as both task identifier and priority).
-* Tick-based timing system using a 1ms SysTick or timer interrupt.
-* Lightweight OS-style delay mechanism using a static task pool to avoid heap fragmentation.
-* Suitable for bare-metal projects and small devices.
+* Single-instance cooperative scheduler.
+* Static task table with user-defined IDs.
+* Tick-based timing system driven by a hardware timer interrupt.
+* Lightweight delay manager using a static task pool to avoid heap fragmentation.
+* Optional task sleeping mechanism.
+* Suitable for MCUs with small RAM/Flash.
 
 ---
 
 ## **2. Design Principles**
 
-* **No dynamic stacks:** All tasks run on the same stack (cooperative multitasking).
-* **Fixed task table:** Number of tasks is defined by `MICROOS_TASK_NUM`.
-* **Tick-based scheduling:** Periodic tasks are triggered by comparing `TickCount` and `LastRunTime`.
-* **Lightweight delay manager:** `OSdelay` uses a static linked list pool (`OS_DELAY_TASKSIZE`) to implement non-blocking delays.
+* **No dynamic stacks:** All tasks share the same call stack (cooperative multitasking).
+* **Fixed-size task table:** Number of tasks defined at compile time with `MICROOS_TASK_NUM`.
+* **Tick-based scheduling:** Driven by a global tick counter incremented in a hardware ISR.
+* **Delay system:** Implemented using static linked list pool (`OS_DELAY_TASKSIZE`).
+* **User-defined frequency:** `MICROOS_FREQ` must match the hardware tick source.
 
 ---
 
-## **3. Data Structures**
+## **3. Configuration**
 
-### **3.1 MicroOS Task Structure**
+### **3.1 Core Macros**
+
+```c
+#define MICROOS_TASK_NUM    64       // Maximum number of tasks
+#define OS_DELAY_TASKSIZE   32       // Max OSdelay entries
+#define MICROOS_FREQ        1000     // Scheduler tick frequency in Hz (must match hardware timer)
+```
+
+### **3.2 Time Conversion Macros**
+
+```c
+// Ticks → Milliseconds
+#define OS_TICKS_MS(tick)   ((tick) * (1000 / MICROOS_FREQ))
+
+// Milliseconds → Ticks
+#define OS_MS_TICKS(ms)     ((ms) * (MICROOS_FREQ / 1000))
+```
+
+*The user must configure `MICROOS_FREQ` to match the timer interrupt frequency (e.g., 1000Hz for 1ms tick).*
+
+---
+
+## **4. Data Structures**
+
+### **4.1 Task Structure**
 
 ```c
 typedef struct {
-    bool IsUsed;                  // Task slot is allocated
-    bool IsRunning;               // Task is currently active
-    uint32_t Period;              // Task period in ms
-    uint32_t LastRunTime;         // Last execution tick
-    void (*TaskFunction)(void*);  // Task callback function
-    void* Userdata;               // User-defined data pointer
+    bool IsUsed;                  // Task slot in use
+    bool IsRunning;               // Task is active
+    bool IsSleeping;              // Task is sleeping
+    uint32_t SleepTicks;          // Remaining sleep time
+    uint32_t Period;              // Execution period (in Ticks)
+    uint32_t LastRunTime;         // Last execution timestamp
+    void (*TaskFunction)(void*);  // Task callback
+    void* Userdata;               // Pointer to user data
 } MicroOS_Task_t;
 ```
 
-### **3.2 MicroOS Instance**
+### **4.2 OS Instance**
 
 ```c
 typedef struct {
-    MicroOS_Task_t Tasks[MICROOS_TASK_NUM];  // Task table
-    uint32_t TickCount;                      // Global tick counter
-    uint32_t MaxTasks;                       // Max number of supported tasks
-    uint8_t CurrentTaskId;                   // Currently executing task ID
-    uint8_t TaskNum;                         // Number of active tasks
+    MicroOS_Task_t Tasks[MICROOS_TASK_NUM];
+    uint32_t TickCount;
+    uint8_t CurrentTaskId;
 } MicroOS_t;
 ```
 
-### **3.3 OS Delay Task**
+### **4.3 Delay Task Structure**
 
 ```c
 typedef struct MicroOS_OSdelay_Task_t {
-    uint8_t id;                          // Delay task ID
-    uint32_t ms;                         // Remaining delay time
-    bool IsTimeout;                      // Timeout flag
-    struct MicroOS_OSdelay_Task_t *next; // Linked list pointer
+    uint8_t id;
+    uint32_t ticks;
+    bool IsTimeout;
+    struct MicroOS_OSdelay_Task_t *next;
 } MicroOS_OSdelay_Task_t;
 ```
 
 ---
 
-## **4. Public API**
+## **5. Public API**
 
-### **4.1 Initialization**
+### **5.1 Initialization**
 
 ```c
 MicroOS_Status_t MicroOS_Init(void);
 ```
 
-Initializes the MicroOS instance and clears the task table.
+Initializes the scheduler and clears all task entries.
 
 ---
 
-### **4.2 Adding a Task**
+### **5.2 Adding Tasks**
 
 ```c
 MicroOS_Status_t MicroOS_AddTask(uint8_t id,
                                  MicroOS_TaskFunction_t TaskFunction,
                                  void *Userdata,
-                                 uint32_t Period);
+                                 uint32_t PeriodTicks);
 ```
 
-* **id:** Unique task ID (0–MICROOS\_TASK\_NUM-1). Lower IDs can be treated as higher priority.
-* **TaskFunction:** Callback function pointer.
-* **Userdata:** Pointer to user-defined data.
-* **Period:** Task execution period in ms.
+* **id:** Task ID (0–MICROOS\_TASK\_NUM-1).
+* **PeriodTicks:** Execution period in **Ticks** (use `OS_MS_TICKS()` if you want to specify ms).
 
 ---
 
-### **4.3 Starting the Scheduler**
+### **5.3 Starting the Scheduler**
 
 ```c
 void MicroOS_StartScheduler(void);
 ```
 
-Runs the task scheduler inside an infinite loop.
-*Note:* This function does not return unless `MicroOS_handle` becomes `NULL`.
+Starts the cooperative scheduler. Runs in an infinite loop.
 
 ---
 
-### **4.4 Tick Handler**
+### **5.4 Tick Handler**
 
 ```c
 MicroOS_Status_t MicroOS_TickHandler(void);
 ```
 
-Increments `TickCount`.
-Must be called in a **1ms SysTick or hardware timer ISR** for accurate scheduling.
+Must be called inside the hardware timer ISR every `1/MICROOS_FREQ` seconds to increment `TickCount`.
 
 ---
 
-### **4.5 Task Control**
+### **5.5 Task Control**
 
 ```c
 MicroOS_Status_t MicroOS_SuspendTask(uint8_t id);
 MicroOS_Status_t MicroOS_ResumeTask(uint8_t id);
 MicroOS_Status_t MicroOS_DeleteTask(uint8_t id);
+MicroOS_Status_t MicroOS_SleepTask(uint8_t id, uint32_t Ticks);
 ```
 
-* `SuspendTask`: Temporarily disables task execution.
-* `ResumeTask`: Reactivates a suspended task.
-* `DeleteTask`: Removes task and clears its slot.
+* `SuspendTask` – Pause task indefinitely.
+* `ResumeTask` – Resume a suspended task.
+* `DeleteTask` – Remove task entry.
+* `SleepTask` – Puts a task into sleep for a given number of **Ticks**.
 
 ---
 
-### **4.6 OS Delay API**
+### **5.6 Delay Management**
 
 ```c
-MicroOS_Status_t MicroOS_OSdelay(uint8_t id, uint32_t ms);
+MicroOS_Status_t MicroOS_OSdelay(uint8_t id, uint32_t Ticks);
 bool MicroOS_GetDelayStatus(uint8_t id);
 void MicroOS_OSdelay_Remove(uint8_t id);
 ```
 
-* `MicroOS_OSdelay(id, ms)`: Start a delay timer for a task.
-* `MicroOS_GetDelayStatus(id)`: Returns `true` when delay is finished.
-* `MicroOS_OSdelay_Remove(id)`: Removes the delay entry (must be called to free resources).
+* `MicroOS_OSdelay()` – Start a delay timer.
+* `MicroOS_GetDelayStatus()` – Check if delay expired.
+* `MicroOS_OSdelay_Remove()` – Free delay entry.
 
 ---
 
-## **5. Usage Example**
+## **6. Usage Examples**
 
-### **5.1 Initialization and Task Setup**
+### **6.1 Initialization**
 
 ```c
-void Task_LED(void *param) {
+void LED_Task(void *param) {
     // Toggle LED
 }
 
-void Task_UART(void *param) {
-    // Handle UART communication
+void UART_Task(void *param) {
+    // Handle UART
 }
 
 int main(void) {
     MicroOS_Init();
-    MicroOS_AddTask(0, Task_LED, NULL, 100);   // LED blink every 100ms
-    MicroOS_AddTask(1, Task_UART, NULL, 10);   // UART polling every 10ms
 
-    MicroOS_StartScheduler();  // Start cooperative scheduler
+    MicroOS_AddTask(0, LED_Task, NULL, OS_MS_TICKS(100));
+    MicroOS_AddTask(1, UART_Task, NULL, OS_MS_TICKS(10));
+
+    MicroOS_StartScheduler();
 }
 ```
 
-### **5.2 Tick ISR**
+### **6.2 Tick ISR**
 
 ```c
 void SysTick_Handler(void) {
-    MicroOS_TickHandler();     // Must be called every 1ms
+    MicroOS_TickHandler();  // Called every 1ms if MICROOS_FREQ = 1000
 }
 ```
 
-### **5.3 Using OSdelay**
+### **6.3 Sleep Example**
 
 ```c
-void Task_Sensor(void *param) {
+void Sensor_Task(void *param) {
+    static bool firstRun = true;
+    if(firstRun) {
+        MicroOS_SleepTask(0, OS_MS_TICKS(500));  // Sleep for 500ms
+        firstRun = false;
+        return;
+    }
+
+    // Sensor processing after sleep
+}
+```
+
+### **6.4 Delay Example**
+
+```c
+void Comm_Task(void *param) {
     static bool waiting = false;
 
     if(!waiting) {
-        MicroOS_OSdelay(1, 500);  // 500ms delay
+        MicroOS_OSdelay(1, OS_MS_TICKS(200));  // 200ms delay
         waiting = true;
     }
 
     if(MicroOS_GetDelayStatus(1)) {
-        // Delay finished, perform sensor read
+        // Do work after delay
         MicroOS_OSdelay_Remove(1);
         waiting = false;
     }
@@ -195,18 +235,11 @@ void Task_Sensor(void *param) {
 
 ---
 
-## **6. Configuration**
-
-* `MICROOS_TASK_NUM`: Maximum number of concurrent tasks (default 64).
-* `OS_DELAY_TASKSIZE`: Size of the delay task pool (default 32).
-
----
-
 ## **7. Limitations**
 
-* Cooperative multitasking (no preemption).
+* Cooperative scheduling only (no preemption).
 * Single stack shared by all tasks.
-* No priority-based preemption (priority is implied by task period and ID).
-* `OSdelay` is cooperative and must be polled.
+* Task priority is implicit via ID and period.
+* OSdelay requires polling.
 
 ---

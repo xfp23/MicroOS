@@ -41,6 +41,7 @@ MicroOS_Status_t MicroOS_AddTask(uint8_t id, MicroOS_TaskFunction_t TaskFunction
     MicroOS_handle->Tasks[id].LastRunTime = 0;
     MicroOS_handle->Tasks[id].IsRunning = true;
     MicroOS_handle->Tasks[id].IsUsed = true;
+    MicroOS_handle->Tasks[id].IsSleeping = false; // 不休眠
 
     return MICROOS_OK;
 }
@@ -62,6 +63,14 @@ void MicroOS_StartScheduler(void)
             if (!MicroOS_handle->Tasks[i].IsRunning)
                 continue;
             uint32_t currentTime = MicroOS_handle->TickCount;
+
+            if (MicroOS_handle->Tasks[i].IsSleeping && currentTime - MicroOS_handle->Tasks[i].LastRunTime >= MicroOS_handle->Tasks[i].SleepTicks)
+            {
+                MicroOS_handle->Tasks[i].IsSleeping = false;
+                MicroOS_handle->Tasks[i].SleepTicks = 0;
+            }
+            if (MicroOS_handle->Tasks[i].IsSleeping)
+                continue;
             if ((currentTime - MicroOS_handle->Tasks[i].LastRunTime) >= MicroOS_handle->Tasks[i].Period)
             {
                 MicroOS_handle->CurrentTaskId = i; // 当前任务ID
@@ -121,16 +130,38 @@ MicroOS_Status_t MicroOS_DeleteTask(uint8_t id)
     return MICROOS_OK;
 }
 
-MicroOS_Status_t MicroOS_delay(uint32_t ms)
+MicroOS_Status_t MicroOS_SleepTask(uint8_t id, uint32_t Ticks)
+{
+    MICROOS_CHECK_PTR(MicroOS_handle);
+    MICROOS_CHECK_ID(id);
+
+    if (Ticks == 0)
+    {
+        return MICROOS_INVALID_PARAM;
+    }
+
+    if (!MicroOS_handle->Tasks[id].IsUsed)
+    {
+        return MICROOS_NOT_INITIALIZED;
+    }
+
+    MicroOS_handle->Tasks[id].IsSleeping = true;
+    MicroOS_handle->Tasks[id].SleepTicks = Ticks;
+	MicroOS_handle->Tasks[id].LastRunTime = MicroOS_handle->TickCount; 
+
+    return MICROOS_OK;
+}
+
+MicroOS_Status_t MicroOS_delay(uint32_t Ticks)
 {
     MICROOS_CHECK_PTR(MicroOS_handle);
 
-    if (ms == 0)
+    if (Ticks == 0)
     {
         return MICROOS_INVALID_PARAM;
     }
     uint32_t startTick = MicroOS_handle->TickCount;
-    while ((MicroOS_handle->TickCount - startTick) < ms)
+    while ((MicroOS_handle->TickCount - startTick) < Ticks)
     {
         // 等待直到指定的毫秒数过去
     }
@@ -148,11 +179,11 @@ void MicroOS_OSdelay_Init(void)
     // 最后一个节点指向 NULL
     delay_pool[OS_DELAY_TASKSIZE - 1].next = NULL;
     free_list = &delay_pool[0]; // 空闲任务池
-    active_list = NULL; // 活动任务池
+    active_list = NULL;         // 活动任务池
 }
 
 // 添加/更新任务
-MicroOS_Status_t MicroOS_OSdelay(uint8_t id, uint32_t ms)
+MicroOS_Status_t MicroOS_OSdelay(uint8_t id, uint32_t Ticks)
 {
     MicroOS_OSdelay_Task_t *p = active_list;
 
@@ -161,9 +192,10 @@ MicroOS_Status_t MicroOS_OSdelay(uint8_t id, uint32_t ms)
     {
         if (p->id == id)
         {
-            p->ms = ms;
+            p->ms = Ticks;
             p->IsTimeout = false;
-            return MICROOS_OK;;
+            return MICROOS_OK;
+            ;
         }
         p = p->next;
     }
@@ -176,7 +208,7 @@ MicroOS_Status_t MicroOS_OSdelay(uint8_t id, uint32_t ms)
     free_list = free_list->next;
 
     node->id = id;
-    node->ms = ms;
+    node->ms = Ticks;
     node->IsTimeout = false;
 
     node->next = active_list;
@@ -242,4 +274,3 @@ void MicroOS_OSdelay_Remove(uint8_t id)
         }
     }
 }
-
