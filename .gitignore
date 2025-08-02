@@ -1,13 +1,18 @@
 # 忽略所有文件
 **
 
-# 允许以下内容
+# 允许特定文件类型
 !*.c
 !*.h
 !LICENSE
 !README.md
 
-# 允许 src 和 include 目录
+# 允许目录，但目录本身必须有被跟踪文件
 !src/
 !include/
 !examples/
+
+# 允许目录下的所有文件（防止目录空了也被忽略）
+!src/**
+!include/**
+!examples/**
