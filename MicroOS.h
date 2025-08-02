@@ -134,7 +134,7 @@ typedef struct MicroOS_OSdelay_Task_t
  * @param Ticks Ticks Delay Ticks num  OS_MS_TICKS(ms)
  * @return MicroOS_Status_t  Status code
  */
-MicroOS_Status_t MicroOS_delay(uint32_t Ticks);
+extern MicroOS_Status_t MicroOS_delay(uint32_t Ticks);
 
 /**
  * @brief Set a delay for a task (OSdelay)
@@ -232,7 +232,7 @@ extern MicroOS_Status_t MicroOS_SleepTask(uint8_t id,uint32_t Ticks);
  * @param id task id
  * @return MicroOS_Status_t Status code
  */
-MicroOS_Status_t MicroOS_WakeupTask(uint8_t id);
+extern MicroOS_Status_t MicroOS_WakeupTask(uint8_t id);
 
 /**
  * @brief Delete the task with the specified ID
