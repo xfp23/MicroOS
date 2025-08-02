@@ -336,7 +336,7 @@
               <MiscControls></MiscControls>
               <Define></Define>
               <Undefine></Undefine>
-              <IncludePath></IncludePath>
+              <IncludePath>.\src;.\include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -378,12 +378,12 @@
       </TargetOption>
       <Groups>
         <Group>
-          <GroupName>UserApp</GroupName>
+          <GroupName>src</GroupName>
           <Files>
             <File>
               <FileName>MicroOS.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\MicroOS.c</FilePath>
+              <FilePath>.\src\MicroOS.c</FilePath>
             </File>
           </Files>
         </Group>

@@ -1,13 +1,13 @@
-ArInp.Scr
+# 忽略所有文件
+**
 
-# Only keep Keil project files, source files, header files, LICENSE, and readme
-!MicroOS.uvprojx
-!MicroOS.uvoptx
-!MicroOS.uvguix.*
+# 允许以下内容
 !*.c
 !*.h
 !LICENSE
-!readme.md
+!README.md
 
-# Ignore everything else
-**/*
+# 允许 src 和 include 目录
+!src/
+!include/
+!examples/
