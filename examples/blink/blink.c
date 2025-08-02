@@ -18,8 +18,8 @@ void Task_DelayExample(void *param) {
     static bool waiting = false;
 
     if (!waiting) {
-        // 设置延时 500 ticks (根据 MICROOS_FREQ 转换)
-        MicroOS_OSdelay(0, 500);
+        // 设置延时 500MS
+        MicroOS_OSdelay(0, OS_MS_TICKS(500));
         waiting = true;
         printf("Delay started\n");
     }
@@ -39,9 +39,9 @@ int main(void) {
     }
 
     // 添加任务：ID 必须唯一且小于 MICROOS_TASK_NUM
-    MicroOS_AddTask(0, Task_LED, NULL, 1000);        // 1000 ticks 周期
-    MicroOS_AddTask(1, Task_UART, NULL, 2000);       // 2000 ticks 周期
-    MicroOS_AddTask(2, Task_DelayExample, NULL, 100); // 100 ticks 周期
+    MicroOS_AddTask(0, Task_LED, NULL, OS_MS_TICKS(1000));        // 1000 MS 周期
+    MicroOS_AddTask(1, Task_UART, NULL, OS_MS_TICKS(2000));       // 2000 MS 周期
+    MicroOS_AddTask(2, Task_DelayExample, NULL, OS_MS_TICKS(100)); // 100 MS 周期
 
     // 启动调度器（一般不会返回）
     MicroOS_StartScheduler();
