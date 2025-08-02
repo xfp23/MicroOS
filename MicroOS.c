@@ -1,5 +1,6 @@
 #include "MicroOS.h"
 #include "stdlib.h"
+#include "string.h"
 
 static volatile MicroOS_t MicroOS = {0};
 
@@ -120,12 +121,7 @@ MicroOS_Status_t MicroOS_DeleteTask(uint8_t id)
         MicroOS_handle->TaskNum--;
     }
 
-    // 清除任务数据
-    MicroOS_handle->Tasks[id].TaskFunction = NULL;
-    MicroOS_handle->Tasks[id].Userdata = NULL;
-    MicroOS_handle->Tasks[id].Period = 0;
-    MicroOS_handle->Tasks[id].LastRunTime = 0;
-    MicroOS_handle->Tasks[id].IsUsed = false;
+    memset((void*)&MicroOS_handle->Tasks[id],0,sizeof(MicroOS_Task_t));
 
     return MICROOS_OK;
 }
@@ -148,6 +144,22 @@ MicroOS_Status_t MicroOS_SleepTask(uint8_t id, uint32_t Ticks)
     MicroOS_handle->Tasks[id].IsSleeping = true;
     MicroOS_handle->Tasks[id].SleepTicks = Ticks;
 	MicroOS_handle->Tasks[id].LastRunTime = MicroOS_handle->TickCount; 
+
+    return MICROOS_OK;
+}
+
+MicroOS_Status_t MicroOS_WeakupTask(uint8_t id)
+{
+    MICROOS_CHECK_PTR(MicroOS_handle);
+    MICROOS_CHECK_ID(id);
+    
+    if(!MicroOS_handle->Tasks[id].IsUsed)
+    {
+        return MICROOS_NOT_INITIALIZED;
+    }
+
+    MicroOS_handle->Tasks[id].IsSleeping = false;
+    MicroOS_handle->Tasks[id].SleepTicks = 0;
 
     return MICROOS_OK;
 }
@@ -218,7 +230,7 @@ MicroOS_Status_t MicroOS_OSdelay(uint8_t id, uint32_t Ticks)
 }
 
 // 查询状态
-bool MicroOS_GetDelayStatus(uint8_t id)
+bool MicroOS_OSdelayDone(uint8_t id)
 {
     MicroOS_OSdelay_Task_t *p = active_list;
     while (p)

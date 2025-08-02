@@ -145,25 +145,29 @@ MicroOS_Status_t MicroOS_SuspendTask(uint8_t id);
 MicroOS_Status_t MicroOS_ResumeTask(uint8_t id);
 MicroOS_Status_t MicroOS_DeleteTask(uint8_t id);
 MicroOS_Status_t MicroOS_SleepTask(uint8_t id, uint32_t Ticks);
+MicroOS_Status_t MicroOS_WeakupTask(uint8_t id);
 ```
 
 * `SuspendTask` – Pause task indefinitely.
 * `ResumeTask` – Resume a suspended task.
 * `DeleteTask` – Remove task entry.
 * `SleepTask` – Puts a task into sleep for a given number of **Ticks**.
+* `WeakupTask` - Wake up sleeping tasks early.
 
 ---
 
 ### **5.6 Delay Management**
 
 ```c
+MicroOS_Status_t MicroOS_delay(uint32_t Ticks);
 MicroOS_Status_t MicroOS_OSdelay(uint8_t id, uint32_t Ticks);
-bool MicroOS_GetDelayStatus(uint8_t id);
+bool MicroOS_OSdelayDone(uint8_t id);
 void MicroOS_OSdelay_Remove(uint8_t id);
 ```
 
+* `MicroOS_delay()` - blocking delay.
 * `MicroOS_OSdelay()` – Start a delay timer.
-* `MicroOS_GetDelayStatus()` – Check if delay expired.
+* `MicroOS_OSdelayDone()` – Check if delay expired.
 * `MicroOS_OSdelay_Remove()` – Free delay entry.
 
 ---
@@ -225,7 +229,7 @@ void Comm_Task(void *param) {
         waiting = true;
     }
 
-    if(MicroOS_GetDelayStatus(1)) {
+    if(MicroOS_OSdelayDone(1)) {
         // Do work after delay
         MicroOS_OSdelay_Remove(1);
         waiting = false;

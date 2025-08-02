@@ -3,7 +3,7 @@
 
 /**
  * @file MicroOS.h
- * @author xfp23
+ * @author (https://github.com/xfp23)
  * @brief Lightweight system scheduler for embedded systems
  * @note This scheduler only supports single-instance operation; all tasks run in the same MicroOS instance.
  *       1. Each task has a unique ID, which can represent task priority. The smaller the ID, the higher the priority.
@@ -129,8 +129,16 @@ typedef struct MicroOS_OSdelay_Task_t
 } MicroOS_OSdelay_Task_t;
 
 /**
+ * @brief blocking delay
+ * 
+ * @param Ticks Ticks Delay Ticks num  OS_MS_TICKS(ms)
+ * @return MicroOS_Status_t  Status code
+ */
+MicroOS_Status_t MicroOS_delay(uint32_t Ticks);
+
+/**
  * @brief Set a delay for a task (OSdelay)
- * @details To use OSdelay accurately, you must create a 1ms periodic task and call MicroOS_GetDelayStatus within it.
+ * @details To use OSdelay accurately, you must create a 1ms periodic task and call MicroOS_OSdelayDone within it.
  *          After the delay is no longer needed, you must call MicroOS_OSdelay_Remove to release the delay task.
  *          See project usage examples for details.
  * @param id Task ID
@@ -146,7 +154,7 @@ extern MicroOS_Status_t MicroOS_OSdelay(uint8_t id, uint32_t Ticks);
  * @param id Task ID
  * @return true if delay has expired and task can run, false if still in delay period
  */
-extern bool MicroOS_GetDelayStatus(uint8_t id);
+extern bool MicroOS_OSdelayDone(uint8_t id);
 
 /**
  * @brief Remove the delay task with the specified ID
@@ -214,9 +222,17 @@ extern MicroOS_Status_t MicroOS_ResumeTask(uint8_t id);
  * 
  * @param id 
  * @param Ticks Sleep Ticks OS_MS_TICKS(ms)
- * @return MicroOS_Status_t 
+ * @return MicroOS_Status_t Status code
  */
 extern MicroOS_Status_t MicroOS_SleepTask(uint8_t id,uint32_t Ticks);
+
+/**
+ * @brief Wake up the task in advance, used in conjunction with sleep
+ * 
+ * @param id task id
+ * @return MicroOS_Status_t Status code
+ */
+MicroOS_Status_t MicroOS_WeakupTask(uint8_t id);
 
 /**
  * @brief Delete the task with the specified ID
