@@ -232,7 +232,7 @@ extern MicroOS_Status_t MicroOS_SleepTask(uint8_t id,uint32_t Ticks);
  * @param id task id
  * @return MicroOS_Status_t Status code
  */
-MicroOS_Status_t MicroOS_WeakupTask(uint8_t id);
+MicroOS_Status_t MicroOS_WakeupTask(uint8_t id);
 
 /**
  * @brief Delete the task with the specified ID

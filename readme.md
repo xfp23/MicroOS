@@ -136,6 +136,13 @@ MicroOS_Status_t MicroOS_TickHandler(void);
 
 Must be called inside the hardware timer ISR every `1/MICROOS_FREQ_HZ` seconds to increment `TickCount`.
 
+### **5.5 Wake up sleeping task**
+
+```c
+MicroOS_Status_t MicroOS_WakeupTask(uint8_t id);
+```
+Wake up sleeping tasks early,Pairing `MicroOS_SleepTask` with tasks that wake up in advance
+
 ---
 
 ### **5.5 Task Control**
@@ -145,7 +152,7 @@ MicroOS_Status_t MicroOS_SuspendTask(uint8_t id);
 MicroOS_Status_t MicroOS_ResumeTask(uint8_t id);
 MicroOS_Status_t MicroOS_DeleteTask(uint8_t id);
 MicroOS_Status_t MicroOS_SleepTask(uint8_t id, uint32_t Ticks);
-MicroOS_Status_t MicroOS_WeakupTask(uint8_t id);
+MicroOS_Status_t MicroOS_WakeupTask(uint8_t id);
 ```
 
 * `SuspendTask` – Pause task indefinitely.

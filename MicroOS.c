@@ -148,7 +148,7 @@ MicroOS_Status_t MicroOS_SleepTask(uint8_t id, uint32_t Ticks)
     return MICROOS_OK;
 }
 
-MicroOS_Status_t MicroOS_WeakupTask(uint8_t id)
+MicroOS_Status_t MicroOS_WakeupTask(uint8_t id)
 {
     MICROOS_CHECK_PTR(MicroOS_handle);
     MICROOS_CHECK_ID(id);
