@@ -50,9 +50,9 @@
           </TargetStatus>
           <OutputDirectory>.\</OutputDirectory>
           <OutputName>MicroOS</OutputName>
-          <CreateExecutable>1</CreateExecutable>
-          <CreateLib>0</CreateLib>
-          <CreateHexFile>0</CreateHexFile>
+          <CreateExecutable>0</CreateExecutable>
+          <CreateLib>1</CreateLib>
+          <CreateHexFile>1</CreateHexFile>
           <DebugInformation>0</DebugInformation>
           <BrowseInformation>1</BrowseInformation>
           <ListingPath>.\</ListingPath>
