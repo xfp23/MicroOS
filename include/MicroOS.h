@@ -4,18 +4,23 @@
 /**
  * @file MicroOS.h
  * @author (https://github.com/xfp23)
- * @brief Lightweight system scheduler for embedded systems
- * @note This scheduler only supports single-instance operation; all tasks run in the same MicroOS instance.
- *       1. Each task has a unique ID, which can represent task priority. The smaller the ID, the higher the priority.
- *       2. The number of supported tasks is defined by MICROOS_TASK_SIZE (default: 10).
- *       3. No dynamic stack allocation for tasks; static allocation is used due to embedded resource constraints and heap fragmentation issues.
- *       4. To speed up the scheduler, increase the frequency of MicroOS_TickHandler calls in the system clock interrupt.
- *       5. To avoid heap fragmentation caused by OSdelay, a delay task pool is used. To expand the OSdelay task pool size, modify OS_DELAY_TASKSIZE.
- *       6. Set the frequency of MICROOS_FREQ_HZ according to the time base given to this library
+ * @brief Lightweight cooperative scheduler and event manager for embedded systems.
+ *
+ * @note
+ *   - Single-instance design: all tasks and events run in the same MicroOS instance.
+ *   - Each task has a unique ID, which can also represent task priority (lower ID = higher priority).
+ *   - The maximum number of tasks is defined by MICROOS_TASK_SIZE (default: 10).
+ *   - Static allocation only; no dynamic stack allocation to avoid heap fragmentation in resource-limited MCUs.
+ *   - Event system uses a fixed pool defined by OS_EVENT_POOLSIZE.
+ *   - Tick-driven scheduler: call MicroOS_TickHandler() from a periodic hardware timer ISR.
+ *   - To speed up scheduling accuracy, ensure MICROOS_FREQ_HZ matches the hardware tick frequency.
+ *   - OSdelay uses a static delay task pool; modify OS_DELAY_POOLSIZE to adjust pool size.
+ *
  * @version 0.0.3
  * @date 2025-07-31
  * @copyright Copyright (c) 2025
  */
+
 #include "stdint.h"
 #include "stdbool.h"
 
@@ -25,20 +30,20 @@ extern "C"
 #endif
 
 // MicroOS version
-#define MICROOS_VERSION_MAJOR "0.0.3"
-	
+#define MICROOS_VERSION_MAJOR "0.1.0"
+
 // MICROOS FREQ
 #define MICROOS_FREQ_HZ 1000
 
-#define MICROOS_TASK_SIZE (10)  // Maximum number of tasks supported
-#define OS_DELAY_TASKSIZE (32) // Maximum number of delay tasks supported
+#define MICROOS_TASK_SIZE (10) // Maximum number of tasks supported
+#define OS_DELAY_POOLSIZE (10) // Maximum number of delay tasks supported
+#define OS_EVENT_POOLSIZE (10) // 事件池大小
 
 // Ticks -> MS
-#define OS_TICKS_MS(tick)   ((tick) * (1000 / MICROOS_FREQ_HZ))
+#define OS_TICKS_MS(tick) ((tick) * (1000 / MICROOS_FREQ_HZ))
 
 // MS -> Ticks
-#define OS_MS_TICKS(ms)     ((ms) * (MICROOS_FREQ_HZ / 1000))
-
+#define OS_MS_TICKS(ms) ((ms) * (MICROOS_FREQ_HZ / 1000))
 
 // Null pointer check macro
 #define MICROOS_CHECK_PTR(ptr)    \
@@ -65,7 +70,7 @@ do                              \
 #define MICROOS_CHECK_ID(id)              \
 do                                    \
 {                                     \
-    if (id >= MICROOS_TASK_SIZE)       \
+    if (id >= MICROOS_TASK_SIZE)      \
     {                                 \
         return MICROOS_INVALID_PARAM; \
     }                                 \
@@ -76,6 +81,12 @@ do                                    \
  * @param Userdata Pointer to user data
  */
 typedef void (*MicroOS_TaskFunction_t)(void *Userdata);
+
+/**
+ * @brief Event function prototype
+ * @param Userdata Pointer to user data
+ */
+typedef void (*MicroOS_EventFunction_t)(void *Userdata);
 
 /**
  * @brief MicroOS status codes
@@ -111,10 +122,10 @@ typedef struct
 typedef struct
 {
     MicroOS_Task_t Tasks[MICROOS_TASK_SIZE]; /**< Array of scheduled tasks */
-    uint32_t TickCount;                     /**< MicroOS tick counter */
-    uint32_t MaxTasks;                      /**< Maximum number of tasks supported */
-    uint8_t CurrentTaskId;                  /**< Current running task ID */
-    uint8_t TaskNum;                        /**< Number of tasks added */
+    uint32_t TickCount;                      /**< MicroOS tick counter */
+    uint32_t MaxTasks;                       /**< Maximum number of tasks supported */
+    uint8_t CurrentTaskId;                   /**< Current running task ID */
+    uint8_t TaskNum;                         /**< Number of tasks added */
 } MicroOS_t;
 
 /**
@@ -123,14 +134,77 @@ typedef struct
 typedef struct MicroOS_OSdelay_Task_t
 {
     uint8_t id;                          /**< Delay task ID */
-    uint32_t ms;                         /**< Delay time in milliseconds */
-    bool IsTimeout;                      /**< Timeout status */
+    volatile uint32_t ms;                /**< Delay time in milliseconds */
+    volatile bool IsTimeout;             /**< Timeout status */
     struct MicroOS_OSdelay_Task_t *next; /**< Pointer to next delay task in pool */
 } MicroOS_OSdelay_Task_t;
 
+typedef struct MicroOS_Event_Task_t
+{
+    uint8_t id;       // 事件唯一id
+    bool IsRunning;   // 是否运行
+    bool IsUsed;      // 被使用
+    bool IsTriggered; // 是否触发
+    void (*EventFunction)(void *data);
+    void *Userdata;
+    struct MicroOS_Event_Task_t *next; // 下一个节点
+} MicroOS_Event_Task_t;
+
+typedef struct
+{
+    MicroOS_Event_Task_t EventPools[OS_EVENT_POOLSIZE]; // 事件池
+    MicroOS_Event_Task_t *free_event;                   // 空闲的事件
+    MicroOS_Event_Task_t *active_event;                 // 活跃的事件
+    uint8_t CurrentEventId;                             // 当前事件ID
+    uint8_t EventNum;                                   // 存活事件数量
+    uint8_t EventIndex;                                 // 事件索引
+} MicroOS_Event_t;
+
+/**
+ * @brief Registers a new event or updates an existing one.
+ * 
+ * @param id            Unique event identifier.
+ * @param EventFunction Callback function to be executed when the event is triggered.
+ * @param Userdata      Pointer to user-defined data passed to the callback function.
+ * @return MicroOS_Status_t Returns MICROOS_OK on success or an error code if the event pool is full.
+ */
+MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, MicroOS_EventFunction_t EventFunction, void *Userdata);
+
+/**
+ * @brief Deletes an event from the active event list.
+ * 
+ * @param id Unique event identifier to be deleted.
+ */
+void MicroOS_DeleteEvent(uint8_t id);
+
+/**
+ * @brief Triggers an event, marking it to be executed in the scheduler loop.
+ * 
+ * @param id Unique event identifier to trigger.
+ * @return MicroOS_Status_t Returns MICROOS_OK if the event was found and triggered, otherwise MICROOS_ERROR.
+ */
+MicroOS_Status_t MicroOS_TriggerEvent(uint8_t id);
+
+/**
+ * @brief Suspends an event, preventing it from being executed even if triggered.
+ * 
+ * @param id Unique event identifier to suspend.
+ * @return MicroOS_Status_t Returns MICROOS_OK if the event was found and suspended, otherwise MICROOS_ERROR.
+ */
+MicroOS_Status_t MicroOS_SuspendEvent(uint8_t id);
+
+/**
+ * @brief Resumes a previously suspended event, allowing it to execute when triggered.
+ * 
+ * @param id Unique event identifier to resume.
+ * @return MicroOS_Status_t Returns MICROOS_OK if the event was found and resumed, otherwise MICROOS_ERROR.
+ */
+MicroOS_Status_t MicroOS_ResumeEvent(uint8_t id);
+
+
 /**
  * @brief blocking delay
- * 
+ *
  * @param Ticks Ticks Delay Ticks num  OS_MS_TICKS(ms)
  * @return MicroOS_Status_t  Status code
  */
@@ -217,18 +291,18 @@ extern MicroOS_Status_t MicroOS_SuspendTask(uint8_t id);
 extern MicroOS_Status_t MicroOS_ResumeTask(uint8_t id);
 
 /**
- * @brief 
+ * @brief
  * Task sleep, set the task not to run within the specified time
- * 
- * @param id 
+ *
+ * @param id
  * @param Ticks Sleep Ticks OS_MS_TICKS(ms)
  * @return MicroOS_Status_t Status code
  */
-extern MicroOS_Status_t MicroOS_SleepTask(uint8_t id,uint32_t Ticks);
+extern MicroOS_Status_t MicroOS_SleepTask(uint8_t id, uint32_t Ticks);
 
 /**
  * @brief Wake up the task in advance, used in conjunction with sleep
- * 
+ *
  * @param id task id
  * @return MicroOS_Status_t Status code
  */

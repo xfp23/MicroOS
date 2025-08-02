@@ -4,13 +4,19 @@
 
 static volatile MicroOS_t MicroOS = {0};
 
-static MicroOS_OSdelay_Task_t delay_pool[OS_DELAY_TASKSIZE] = {0};
+static MicroOS_Event_t OSEvent = {0};
+
+static MicroOS_OSdelay_Task_t delay_pool[OS_DELAY_POOLSIZE] = {0};
 static MicroOS_OSdelay_Task_t *free_list = NULL;   // 空闲节点链表
 static MicroOS_OSdelay_Task_t *active_list = NULL; // 活动节点链表
 
 static void MicroOS_OSdelay_Init(void);
 
 static void MicroOS_OSdelay_Tick(void);
+
+static void MicroOS_OSEvent_Init(void);
+
+static void MicroOS_DispatchAllEvents(void);
 
 MicroOS_Handle_t const MicroOS_handle = &MicroOS;
 
@@ -23,6 +29,7 @@ MicroOS_Status_t MicroOS_Init()
     MicroOS_handle->TickCount = 0;
     MicroOS_handle->CurrentTaskId = 0;
     MicroOS_OSdelay_Init();
+    MicroOS_OSEvent_Init();
     return MICROOS_OK;
 }
 
@@ -56,6 +63,8 @@ void MicroOS_StartScheduler(void)
         {
             return;
         }
+
+        MicroOS_DispatchAllEvents(); // 遍历事件槽
         // 遍历所有任务
         for (uint8_t i = 0; i < MICROOS_TASK_SIZE; i++)
         {
@@ -72,7 +81,7 @@ void MicroOS_StartScheduler(void)
             }
             if (MicroOS_handle->Tasks[i].IsSleeping)
                 continue;
-            if ((currentTime - MicroOS_handle->Tasks[i].LastRunTime) >= MicroOS_handle->Tasks[i].Period)
+            if ((uint32_t)(currentTime - MicroOS_handle->Tasks[i].LastRunTime) >= MicroOS_handle->Tasks[i].Period)
             {
                 MicroOS_handle->CurrentTaskId = i; // 当前任务ID
                 MicroOS_handle->Tasks[i].TaskFunction(MicroOS_handle->Tasks[i].Userdata);
@@ -192,12 +201,12 @@ MicroOS_Status_t MicroOS_delay(uint32_t Ticks)
 void MicroOS_OSdelay_Init(void)
 {
     // 初始化任务池
-    for (int i = 0; i < OS_DELAY_TASKSIZE - 1; i++)
+    for (int i = 0; i < OS_DELAY_POOLSIZE - 1; i++)
     {
         delay_pool[i].next = &delay_pool[i + 1];
     }
     // 最后一个节点指向 NULL
-    delay_pool[OS_DELAY_TASKSIZE - 1].next = NULL;
+    delay_pool[OS_DELAY_POOLSIZE - 1].next = NULL;
     free_list = &delay_pool[0]; // 空闲任务池
     active_list = NULL;         // 活动任务池
 }
@@ -279,9 +288,7 @@ void MicroOS_OSdelay_Remove(uint8_t id)
             *pp = (*pp)->next;
 
             // 清零节点
-            tmp->id = 0;
-            tmp->ms = 0;
-            tmp->IsTimeout = false;
+            memset((void *)tmp, 0, sizeof(MicroOS_OSdelay_Task_t));
 
             // 放回 free_list
             tmp->next = free_list;
@@ -292,5 +299,144 @@ void MicroOS_OSdelay_Remove(uint8_t id)
         {
             pp = &(*pp)->next;
         }
+    }
+}
+
+static void MicroOS_OSEvent_Init(void)
+{
+    // 初始化链表
+    for (uint8_t i = 0; i < OS_EVENT_POOLSIZE - 1; i++)
+    {
+        OSEvent.EventPools[i].next = &OSEvent.EventPools[i + 1];
+    }
+
+    OSEvent.EventPools[OS_EVENT_POOLSIZE - 1].next = NULL;
+    OSEvent.active_event = NULL;
+    OSEvent.free_event = &OSEvent.EventPools[0]; // 空闲事件链表
+}
+
+
+MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id,MicroOS_EventFunction_t EventFunction,void *Userdata)
+{
+    MICROOS_CHECK_PTR(EventFunction);
+    MicroOS_Event_Task_t *p = OSEvent.active_event;
+    while (p)
+    {
+        if (p->id == id)
+        {
+            p->EventFunction = EventFunction;
+            p->IsRunning = true;
+            p->Userdata = Userdata;
+            p->IsTriggered = false;
+            p->IsUsed = true;
+            return MICROOS_OK;
+        }
+        p = p->next;
+    }
+
+    if (!OSEvent.free_event)
+        return MICROOS_BUSY; // 事件池满了
+
+        OSEvent.EventNum++;
+    MicroOS_Event_Task_t *node = OSEvent.free_event; // 保存当前要用的节点
+    OSEvent.free_event = OSEvent.free_event->next;   // 将要用的节点从空闲节点中剔除
+
+    node->id = id;
+    node->EventFunction = EventFunction;
+    node->Userdata = Userdata;
+    node->IsRunning = true;
+    node->IsTriggered = false;
+    node->IsUsed = true;
+
+    node->next = OSEvent.active_event;
+    OSEvent.active_event = node;
+
+    return MICROOS_OK;
+}
+
+void MicroOS_DeleteEvent(uint8_t id)
+{
+    MicroOS_Event_Task_t **pp = (MicroOS_Event_Task_t**)&OSEvent.active_event;
+
+    while (*pp)
+    {
+        if ((*pp)->id == id)
+        {
+             OSEvent.EventNum--;
+            MicroOS_Event_Task_t *tmp = *pp;
+            *pp = tmp->next;
+
+            memset(tmp, 0, sizeof(MicroOS_Event_Task_t));
+
+            tmp->next = OSEvent.free_event;
+            OSEvent.free_event = tmp;
+
+            return;
+        }
+        else
+        {
+            pp = &(*pp)->next;
+        }
+    }
+}
+
+MicroOS_Status_t MicroOS_TriggerEvent(uint8_t id)
+{
+    MicroOS_Event_Task_t *p = OSEvent.active_event;
+    while (p)
+    {
+        if (p->id == id)
+        {
+            p->IsTriggered = true; 
+            return MICROOS_OK;
+        }
+        p = p->next;
+    }
+    return MICROOS_ERROR;
+}
+
+MicroOS_Status_t MicroOS_SuspendEvent(uint8_t id)
+{
+    MicroOS_Event_Task_t *p = OSEvent.active_event;
+    while (p)
+    {
+        if (p->id == id)
+        {
+            p->IsRunning = false;
+            return MICROOS_OK;
+        }
+        p = p->next;
+    }
+    return MICROOS_ERROR;
+}
+
+MicroOS_Status_t MicroOS_ResumeEvent(uint8_t id)
+{
+    MicroOS_Event_Task_t *p = OSEvent.active_event;
+    while (p)
+    {
+        if (p->id == id)
+        {
+            p->IsRunning = true;
+            return MICROOS_OK;
+        }
+        p = p->next;
+    }
+    return MICROOS_ERROR;
+}
+
+void MicroOS_DispatchAllEvents(void)
+{
+    MicroOS_Event_Task_t *p = OSEvent.active_event;
+
+    while (p)
+    {
+        if (p->IsRunning && p->IsTriggered && p->IsUsed)
+        {
+            OSEvent.CurrentEventId = p->id;
+            p->EventFunction(p->Userdata);
+            p->IsTriggered = false;
+        }
+        p = p->next;
     }
 }

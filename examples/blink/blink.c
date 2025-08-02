@@ -1,55 +1,37 @@
 #include "MicroOS.h"
-#include <stdio.h> // 仅用于示例打印
+#include <stdio.h> // Only for demonstration output
 
-// 模拟LED闪烁任务
-void Task_LED(void *param) {
-    static int state = 0;
-    state = !state;
-    printf("LED is now %s\n", state ? "ON" : "OFF");
+// Simulated LED toggle event callback
+void UserEvent_BlinkLed(void *param) {
+    static int ledState = 0;
+    ledState = !ledState;
+    printf("LED is now %s\n", ledState ? "ON" : "OFF");
 }
 
-// 模拟UART处理任务
-void Task_UART(void *param) {
-    printf("UART handling...\n");
-}
-
-// 模拟使用 OSdelay 的任务
-void Task_DelayExample(void *param) {
-    static bool waiting = false;
-
-    if (!waiting) {
-        // 设置延时 500MS
-        MicroOS_OSdelay(0, OS_MS_TICKS(500));
-        waiting = true;
-        printf("Delay started\n");
-    }
-
-    if (MicroOS_OSdelayDone(0)) {
-        MicroOS_OSdelay_Remove(0);
-        waiting = false;
-        printf("Delay finished, doing work\n");
-    }
+// Task that triggers the blink event every 500ms
+void Task_TriggerBlinkEvent(void *param) {
+    MicroOS_TriggerEvent(0);
 }
 
 int main(void) {
-    // 初始化 MicroOS
     if (MicroOS_Init() != MICROOS_OK) {
         printf("MicroOS initialization failed!\n");
         return -1;
     }
 
-    // 添加任务：ID 必须唯一且小于 MICROOS_TASK_SIZE
-    MicroOS_AddTask(0, Task_LED, NULL, OS_MS_TICKS(1000));        // 1000 MS 周期
-    MicroOS_AddTask(1, Task_UART, NULL, OS_MS_TICKS(2000));       // 2000 MS 周期
-    MicroOS_AddTask(2, Task_DelayExample, NULL, OS_MS_TICKS(100)); // 100 MS 周期
+    // Register event ID 0 with the LED blink callback
+    MicroOS_RegisterEvent(0, UserEvent_BlinkLed, NULL);
 
-    // 启动调度器（一般不会返回）
+    // Add a task that triggers the blink event every 500ms
+    MicroOS_AddTask(0, Task_TriggerBlinkEvent, NULL, OS_MS_TICKS(500));
+
+    // Start scheduler (blocking call)
     MicroOS_StartScheduler();
 
     return 0;
 }
 
-// 假设这是1ms硬件定时器中断调用
+// Simulated 1ms tick interrupt handler
 void SysTick_Handler(void) {
     MicroOS_TickHandler();
 }

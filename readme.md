@@ -5,12 +5,13 @@
 
 ## **1. Overview**
 
-`MicroOS` is a lightweight cooperative task scheduler designed for bare-metal embedded systems with limited resources. It provides a minimal yet flexible API to manage periodic tasks, task delays, and task control without the overhead of a full RTOS.
+`MicroOS` is a lightweight cooperative task scheduler designed for bare-metal embedded systems with limited resources. It provides a minimal yet flexible API to manage periodic tasks, task delays, events, and task control without the overhead of a full RTOS.
 
 Key features:
 
 * Single-instance cooperative scheduler.
 * Static task table with user-defined IDs.
+* Event management system for asynchronous callbacks.
 * Tick-based timing system driven by a hardware timer interrupt.
 * Lightweight delay manager using a static task pool to avoid heap fragmentation.
 * Optional task sleeping mechanism.
@@ -22,8 +23,9 @@ Key features:
 
 * **No dynamic stacks:** All tasks share the same call stack (cooperative multitasking).
 * **Fixed-size task table:** Number of tasks defined at compile time with `MICROOS_TASK_SIZE`.
+* **Static event pool:** Events are managed via a pre-allocated pool `OS_EVENT_POOLSIZE`.
 * **Tick-based scheduling:** Driven by a global tick counter incremented in a hardware ISR.
-* **Delay system:** Implemented using static linked list pool (`OS_DELAY_TASKSIZE`).
+* **Delay system:** Implemented using static linked list pool (`OS_DELAY_POOLSIZE`).
 * **User-defined frequency:** `MICROOS_FREQ_HZ` must match the hardware tick source.
 
 ---
@@ -34,9 +36,10 @@ Key features:
 
 ```c
 #define MICROOS_TASK_SIZE    10       // Maximum number of tasks
-#define OS_DELAY_TASKSIZE   32       // Max OSdelay entries
-#define MICROOS_FREQ_HZ        1000     // Scheduler tick frequency in Hz (must match hardware timer)
-```
+#define OS_DELAY_POOLSIZE    10       // Max OSdelay entries
+#define OS_EVENT_POOLSIZE    10       // Max event entries
+#define MICROOS_FREQ_HZ      1000     // Scheduler tick frequency in Hz (must match hardware timer)
+````
 
 ### **3.2 Time Conversion Macros**
 
@@ -58,18 +61,32 @@ Key features:
 
 ```c
 typedef struct {
-    bool IsUsed;                  // Task slot in use
-    bool IsRunning;               // Task is active
-    bool IsSleeping;              // Task is sleeping
-    uint32_t SleepTicks;          // Remaining sleep time
-    uint32_t Period;              // Execution period (in Ticks)
-    uint32_t LastRunTime;         // Last execution timestamp
-    void (*TaskFunction)(void*);  // Task callback
-    void* Userdata;               // Pointer to user data
+    bool IsUsed;
+    bool IsRunning;
+    bool IsSleeping;
+    uint32_t SleepTicks;
+    uint32_t Period;
+    uint32_t LastRunTime;
+    void (*TaskFunction)(void*);
+    void* Userdata;
 } MicroOS_Task_t;
 ```
 
-### **4.2 OS Instance**
+### **4.2 Event Structure**
+
+```c
+typedef struct MicroOS_Event_Task_t {
+    uint8_t id;
+    bool IsRunning;
+    bool IsUsed;
+    bool IsTriggered;
+    void (*EventFunction)(void *data);
+    void *Userdata;
+    struct MicroOS_Event_Task_t *next;
+} MicroOS_Event_Task_t;
+```
+
+### **4.3 OS Instance**
 
 ```c
 typedef struct {
@@ -77,17 +94,6 @@ typedef struct {
     uint32_t TickCount;
     uint8_t CurrentTaskId;
 } MicroOS_t;
-```
-
-### **4.3 Delay Task Structure**
-
-```c
-typedef struct MicroOS_OSdelay_Task_t {
-    uint8_t id;
-    uint32_t ticks;
-    bool IsTimeout;
-    struct MicroOS_OSdelay_Task_t *next;
-} MicroOS_OSdelay_Task_t;
 ```
 
 ---
@@ -100,7 +106,7 @@ typedef struct MicroOS_OSdelay_Task_t {
 MicroOS_Status_t MicroOS_Init(void);
 ```
 
-Initializes the scheduler and clears all task entries.
+Initializes the scheduler and clears all task and event entries.
 
 ---
 
@@ -113,7 +119,7 @@ MicroOS_Status_t MicroOS_AddTask(uint8_t id,
                                  uint32_t PeriodTicks);
 ```
 
-* **id:** Task ID (0–MICROOS\_TASK\_NUM-1).
+* **id:** Task ID (0–MICROOS\_TASK\_SIZE-1).
 * **PeriodTicks:** Execution period in **Ticks** (use `OS_MS_TICKS()` if you want to specify ms).
 
 ---
@@ -136,13 +142,6 @@ MicroOS_Status_t MicroOS_TickHandler(void);
 
 Must be called inside the hardware timer ISR every `1/MICROOS_FREQ_HZ` seconds to increment `TickCount`.
 
-### **5.5 Wake up sleeping task**
-
-```c
-MicroOS_Status_t MicroOS_WakeupTask(uint8_t id);
-```
-Wake up sleeping tasks early,Pairing `MicroOS_SleepTask` with tasks that wake up in advance
-
 ---
 
 ### **5.5 Task Control**
@@ -159,7 +158,7 @@ MicroOS_Status_t MicroOS_WakeupTask(uint8_t id);
 * `ResumeTask` – Resume a suspended task.
 * `DeleteTask` – Remove task entry.
 * `SleepTask` – Puts a task into sleep for a given number of **Ticks**.
-* `WeakupTask` - Wake up sleeping tasks early.
+* `WakeupTask` – Wake up a sleeping task early.
 
 ---
 
@@ -176,6 +175,52 @@ void MicroOS_OSdelay_Remove(uint8_t id);
 * `MicroOS_OSdelay()` – Start a delay timer.
 * `MicroOS_OSdelayDone()` – Check if delay expired.
 * `MicroOS_OSdelay_Remove()` – Free delay entry.
+
+---
+
+### **5.7 Event Management**
+
+#### **API**
+
+```c
+MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id,
+                                       MicroOS_EventFunction_t EventFunction,
+                                       void *Userdata);
+
+void MicroOS_DeleteEvent(uint8_t id);
+
+MicroOS_Status_t MicroOS_TriggerEvent(uint8_t id);
+
+MicroOS_Status_t MicroOS_SuspendEvent(uint8_t id);
+
+MicroOS_Status_t MicroOS_ResumeEvent(uint8_t id);
+```
+
+* `RegisterEvent` – Add or update an event callback.
+* `DeleteEvent` – Remove an event from the active list.
+* `TriggerEvent` – Mark an event as triggered; it will execute in the scheduler loop.
+* `SuspendEvent` – Temporarily disable an event from executing.
+* `ResumeEvent` – Reactivate a suspended event.
+
+#### **Simple Example**
+
+```c
+void MyEventHandler(void *data) {
+    // Handle the event
+    printf("Event triggered!\n");
+}
+
+void MyTask(void *param) {
+    MicroOS_TriggerEvent(0);  // Trigger event ID 0
+}
+
+int main(void) {
+    MicroOS_Init();
+    MicroOS_RegisterEvent(0, MyEventHandler, NULL);
+    MicroOS_AddTask(0, MyTask, NULL, OS_MS_TICKS(100));
+    MicroOS_StartScheduler();
+}
+```
 
 ---
 
@@ -252,5 +297,6 @@ void Comm_Task(void *param) {
 * Single stack shared by all tasks.
 * Task priority is implicit via ID and period.
 * OSdelay requires polling.
+* Event pool size is fixed at compile-time (`OS_EVENT_POOLSIZE`).
 
 ---
