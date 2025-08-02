@@ -96,6 +96,10 @@ MicroOS_Status_t MicroOS_SuspendTask(uint8_t id)
 {
     MICROOS_CHECK_PTR(MicroOS_handle);
     MICROOS_CHECK_ID(id);
+    if (!MicroOS_handle->Tasks[id].IsUsed)
+    {
+        return MICROOS_NOT_INITIALIZED;
+    }
 
     MicroOS_handle->Tasks[id].IsRunning = false;
     return MICROOS_OK;
@@ -106,6 +110,10 @@ MicroOS_Status_t MicroOS_ResumeTask(uint8_t id)
     MICROOS_CHECK_PTR(MicroOS_handle);
     MICROOS_CHECK_ID(id);
 
+    if (!MicroOS_handle->Tasks[id].IsUsed)
+    {
+        return MICROOS_NOT_INITIALIZED;
+    }
     MicroOS_handle->Tasks[id].IsRunning = true;
     return MICROOS_OK;
 }
@@ -121,7 +129,7 @@ MicroOS_Status_t MicroOS_DeleteTask(uint8_t id)
         MicroOS_handle->TaskNum--;
     }
 
-    memset((void*)&MicroOS_handle->Tasks[id],0,sizeof(MicroOS_Task_t));
+    memset((void *)&MicroOS_handle->Tasks[id], 0, sizeof(MicroOS_Task_t));
 
     return MICROOS_OK;
 }
@@ -143,7 +151,7 @@ MicroOS_Status_t MicroOS_SleepTask(uint8_t id, uint32_t Ticks)
 
     MicroOS_handle->Tasks[id].IsSleeping = true;
     MicroOS_handle->Tasks[id].SleepTicks = Ticks;
-	MicroOS_handle->Tasks[id].LastRunTime = MicroOS_handle->TickCount; 
+    MicroOS_handle->Tasks[id].LastRunTime = MicroOS_handle->TickCount;
 
     return MICROOS_OK;
 }
@@ -152,8 +160,8 @@ MicroOS_Status_t MicroOS_WakeupTask(uint8_t id)
 {
     MICROOS_CHECK_PTR(MicroOS_handle);
     MICROOS_CHECK_ID(id);
-    
-    if(!MicroOS_handle->Tasks[id].IsUsed)
+
+    if (!MicroOS_handle->Tasks[id].IsUsed)
     {
         return MICROOS_NOT_INITIALIZED;
     }
