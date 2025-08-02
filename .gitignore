@@ -6,6 +6,7 @@
 !*.h
 !LICENSE
 !README.md
+!README.zh.md
 
 # 允许目录，但目录本身必须有被跟踪文件
 !src/
