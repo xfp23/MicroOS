@@ -7,7 +7,7 @@
  * @brief Lightweight system scheduler for embedded systems
  * @note This scheduler only supports single-instance operation; all tasks run in the same MicroOS instance.
  *       1. Each task has a unique ID, which can represent task priority. The smaller the ID, the higher the priority.
- *       2. The number of supported tasks is defined by MICROOS_TASK_NUM (default: 10).
+ *       2. The number of supported tasks is defined by MICROOS_TASK_SIZE (default: 10).
  *       3. No dynamic stack allocation for tasks; static allocation is used due to embedded resource constraints and heap fragmentation issues.
  *       4. To speed up the scheduler, increase the frequency of MicroOS_TickHandler calls in the system clock interrupt.
  *       5. To avoid heap fragmentation caused by OSdelay, a delay task pool is used. To expand the OSdelay task pool size, modify OS_DELAY_TASKSIZE.
@@ -30,7 +30,7 @@ extern "C"
 // MICROOS FREQ
 #define MICROOS_FREQ_HZ 1000
 
-#define MICROOS_TASK_NUM (10)  // Maximum number of tasks supported
+#define MICROOS_TASK_SIZE (10)  // Maximum number of tasks supported
 #define OS_DELAY_TASKSIZE (32) // Maximum number of delay tasks supported
 
 // Ticks -> MS
@@ -65,7 +65,7 @@ do                              \
 #define MICROOS_CHECK_ID(id)              \
 do                                    \
 {                                     \
-    if (id >= MICROOS_TASK_NUM)       \
+    if (id >= MICROOS_TASK_SIZE)       \
     {                                 \
         return MICROOS_INVALID_PARAM; \
     }                                 \
@@ -110,7 +110,7 @@ typedef struct
  */
 typedef struct
 {
-    MicroOS_Task_t Tasks[MICROOS_TASK_NUM]; /**< Array of scheduled tasks */
+    MicroOS_Task_t Tasks[MICROOS_TASK_SIZE]; /**< Array of scheduled tasks */
     uint32_t TickCount;                     /**< MicroOS tick counter */
     uint32_t MaxTasks;                      /**< Maximum number of tasks supported */
     uint8_t CurrentTaskId;                  /**< Current running task ID */
@@ -182,7 +182,7 @@ extern MicroOS_Status_t MicroOS_Init(void);
 
 /**
  * @brief Add a task to the scheduler
- * @param id Task ID (also represents priority; must be unique and less than MICROOS_TASK_NUM)
+ * @param id Task ID (also represents priority; must be unique and less than MICROOS_TASK_SIZE)
  * @param TaskFunction Pointer to the task function
  * @param Userdata Pointer to user data
  * @param Period Task period in milliseconds

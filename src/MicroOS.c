@@ -18,7 +18,7 @@ MicroOS_Status_t MicroOS_Init()
 {
     MICROOS_CHECK_PTR(MicroOS_handle);
 
-    MicroOS_handle->MaxTasks = MICROOS_TASK_NUM;
+    MicroOS_handle->MaxTasks = MICROOS_TASK_SIZE;
     MicroOS_handle->TaskNum = 0;
     MicroOS_handle->TickCount = 0;
     MicroOS_handle->CurrentTaskId = 0;
@@ -32,7 +32,7 @@ MicroOS_Status_t MicroOS_AddTask(uint8_t id, MicroOS_TaskFunction_t TaskFunction
     MICROOS_CHECK_ID(id);
     MICROOS_CHECK_PTR(TaskFunction);
 
-    if (MicroOS_handle->TaskNum > MICROOS_TASK_NUM)
+    if (MicroOS_handle->TaskNum > MICROOS_TASK_SIZE)
         return MICROOS_ERROR;
 
     MicroOS_handle->TaskNum++;
@@ -57,7 +57,7 @@ void MicroOS_StartScheduler(void)
             return;
         }
         // 遍历所有任务
-        for (uint8_t i = 0; i < MICROOS_TASK_NUM; i++)
+        for (uint8_t i = 0; i < MICROOS_TASK_SIZE; i++)
         {
             if (!MicroOS_handle->Tasks[i].IsUsed)
                 continue;

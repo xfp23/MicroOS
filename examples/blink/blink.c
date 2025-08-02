@@ -38,7 +38,7 @@ int main(void) {
         return -1;
     }
 
-    // 添加任务：ID 必须唯一且小于 MICROOS_TASK_NUM
+    // 添加任务：ID 必须唯一且小于 MICROOS_TASK_SIZE
     MicroOS_AddTask(0, Task_LED, NULL, OS_MS_TICKS(1000));        // 1000 MS 周期
     MicroOS_AddTask(1, Task_UART, NULL, OS_MS_TICKS(2000));       // 2000 MS 周期
     MicroOS_AddTask(2, Task_DelayExample, NULL, OS_MS_TICKS(100)); // 100 MS 周期

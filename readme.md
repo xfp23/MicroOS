@@ -21,7 +21,7 @@ Key features:
 ## **2. Design Principles**
 
 * **No dynamic stacks:** All tasks share the same call stack (cooperative multitasking).
-* **Fixed-size task table:** Number of tasks defined at compile time with `MICROOS_TASK_NUM`.
+* **Fixed-size task table:** Number of tasks defined at compile time with `MICROOS_TASK_SIZE`.
 * **Tick-based scheduling:** Driven by a global tick counter incremented in a hardware ISR.
 * **Delay system:** Implemented using static linked list pool (`OS_DELAY_TASKSIZE`).
 * **User-defined frequency:** `MICROOS_FREQ_HZ` must match the hardware tick source.
@@ -33,7 +33,7 @@ Key features:
 ### **3.1 Core Macros**
 
 ```c
-#define MICROOS_TASK_NUM    64       // Maximum number of tasks
+#define MICROOS_TASK_SIZE    10       // Maximum number of tasks
 #define OS_DELAY_TASKSIZE   32       // Max OSdelay entries
 #define MICROOS_FREQ_HZ        1000     // Scheduler tick frequency in Hz (must match hardware timer)
 ```
@@ -73,7 +73,7 @@ typedef struct {
 
 ```c
 typedef struct {
-    MicroOS_Task_t Tasks[MICROOS_TASK_NUM];
+    MicroOS_Task_t Tasks[MICROOS_TASK_SIZE];
     uint32_t TickCount;
     uint8_t CurrentTaskId;
 } MicroOS_t;
