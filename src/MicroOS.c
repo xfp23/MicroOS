@@ -191,7 +191,7 @@ MicroOS_Status_t MicroOS_delay(uint32_t Ticks)
 }
 
 // 初始化任务池
-void MicroOS_OSdelay_Init(void)
+static void MicroOS_OSdelay_Init(void)
 {
     // 初始化任务池
     for (int i = 0; i < OS_DELAY_POOLSIZE - 1; i++)
