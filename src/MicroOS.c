@@ -427,7 +427,7 @@ void MicroOS_DispatchAllEvents(void)
         {
             OSEvent.CurrentEventId = p->id;
             p->EventFunction(p->Userdata);
-            p->TriggerCount = 0;
+            p->TriggerCount--;
         }
         p = p->next;
     }
