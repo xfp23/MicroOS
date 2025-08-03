@@ -1,5 +1,5 @@
 
-[Click here for English documentation](README.md)
+[Click here for English documentation](readme.md)
 
 # **MicroOS 调度器驱动文档**
 
@@ -75,15 +75,15 @@ typedef struct {
 ### **4.2 事件结构体**
 
 ```c
-typedef struct MicroOS_Event_Task_t {
+typedef struct MicroOS_Event_Sub_t {
     uint8_t id;
     bool IsRunning;
     bool IsUsed;
     bool IsTriggered;
     void (*EventFunction)(void *data);
     void *Userdata;
-    struct MicroOS_Event_Task_t *next;
-} MicroOS_Event_Task_t;
+    struct MicroOS_Event_Sub_t *next;
+} MicroOS_Event_Sub_t;
 ```
 
 ### **4.3 OS 实例结构体**
@@ -93,7 +93,7 @@ typedef struct {
     MicroOS_Task_t Tasks[MICROOS_TASK_SIZE];
     uint32_t TickCount;
     uint8_t CurrentTaskId;
-} MicroOS_t;
+} MicroOS_Task_t;
 ```
 
 ---

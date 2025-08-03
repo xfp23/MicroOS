@@ -71,31 +71,31 @@ typedef struct {
     uint32_t LastRunTime;
     void (*TaskFunction)(void*);
     void* Userdata;
-} MicroOS_Task_t;
+} MicroOS_Task_Sub_t;
 ```
 
 ### **4.2 Event Structure**
 
 ```c
-typedef struct MicroOS_Event_Task_t {
+typedef struct MicroOS_Event_Sub_t {
     uint8_t id;
     bool IsRunning;
     bool IsUsed;
     bool IsTriggered;
     void (*EventFunction)(void *data);
     void *Userdata;
-    struct MicroOS_Event_Task_t *next;
-} MicroOS_Event_Task_t;
+    struct MicroOS_Event_Sub_t *next;
+} MicroOS_Event_Sub_t;
 ```
 
 ### **4.3 OS Instance**
 
 ```c
 typedef struct {
-    MicroOS_Task_t Tasks[MICROOS_TASK_SIZE];
+    MicroOS_Task_Sub_t Tasks[MICROOS_TASK_SIZE];
     uint32_t TickCount;
     uint8_t CurrentTaskId;
-} MicroOS_t;
+} MicroOS_Task_t;
 ```
 
 ---
