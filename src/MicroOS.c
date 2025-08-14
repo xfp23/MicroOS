@@ -377,7 +377,7 @@ MicroOS_Status_t MicroOS_TriggerEvent(uint8_t id)
     MicroOS_Event_Sub_t *p = OSEvent.active_event;
     while (p)
     {
-        if (p->id == id && p->IsUsed)
+        if (p->id == id && p->IsUsed && p->IsRunning)
         {
             p->TriggerCount++;
             return MICROOS_OK;
