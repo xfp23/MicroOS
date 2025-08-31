@@ -40,7 +40,10 @@ MicroOS_Status_t MicroOS_AddTask(uint8_t id, MicroOS_TaskFunction_t TaskFunction
     if (MicroOS_Task_Handle->TaskNum > MICROOS_TASK_SIZE)
         return MICROOS_ERROR;
 
-    MicroOS_Task_Handle->TaskNum++;
+    if (!MicroOS_Task_Handle->Tasks[id].IsUsed)
+    {
+        MicroOS_Task_Handle->TaskNum++;
+    }
     MicroOS_Task_Handle->Tasks[id].TaskFunction = TaskFunction;
     MicroOS_Task_Handle->Tasks[id].Userdata = Userdata;
     MicroOS_Task_Handle->Tasks[id].Period = Period;
