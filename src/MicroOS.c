@@ -420,7 +420,7 @@ MicroOS_Status_t MicroOS_ResumeEvent(uint8_t id)
     return MICROOS_ERROR;
 }
 
-void MicroOS_DispatchAllEvents(void)
+static void MicroOS_DispatchAllEvents(void)
 {
     MicroOS_Event_Sub_t *p = OSEvent.active_event;
 

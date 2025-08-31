@@ -7,9 +7,9 @@
  * @brief Define types
  * @version 0.1
  * @date 2025-08-31
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
 #include "stdint.h"
 #include "stdbool.h"
@@ -19,6 +19,11 @@
 extern "C"
 {
 #endif
+
+/**
+ * @brief MicroOS handle type (pointer to main instance)
+ */
+typedef volatile MicroOS_Task_t *MicroOS_Task_Handle_t;
 
 /**
  * @brief Task function prototype
@@ -111,7 +116,6 @@ typedef struct
     uint8_t CurrentEventId;                            // Current event ID
     uint8_t EventNum;                                  // number of surviving events
 } MicroOS_Event_t;
-
 
 #ifdef __cplusplus
 }

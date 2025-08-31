@@ -107,11 +107,6 @@ extern bool MicroOS_OSdelayDone(uint8_t id);
 extern void MicroOS_OSdelay_Remove(uint8_t id);
 
 /**
- * @brief MicroOS handle type (pointer to main instance)
- */
-typedef volatile MicroOS_Task_t *MicroOS_Task_Handle_t;
-
-/**
  * @brief Initialize the MicroOS instance
  * @return MicroOS_Status_t Status code
  */
