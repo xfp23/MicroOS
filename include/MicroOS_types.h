@@ -21,11 +21,6 @@ extern "C"
 #endif
 
 /**
- * @brief MicroOS handle type (pointer to main instance)
- */
-typedef volatile MicroOS_Task_t *MicroOS_Task_Handle_t;
-
-/**
  * @brief Task function prototype
  * @param Userdata Pointer to user data
  */
@@ -119,6 +114,10 @@ typedef struct
     uint8_t EventNum;                                  // number of surviving events
 } MicroOS_Event_t;
 
+/**
+ * @brief MicroOS handle type (pointer to main instance)
+ */
+typedef volatile MicroOS_Task_t *MicroOS_Task_Handle_t;
 #ifdef __cplusplus
 }
 #endif
