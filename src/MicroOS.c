@@ -31,7 +31,7 @@ MicroOS_Status_t MicroOS_Init()
     return MICROOS_OK;
 }
 
-MicroOS_Status_t MicroOS_AddTask(uint8_t id, MicroOS_TaskFunction_t TaskFunction, void *Userdata, uint32_t Period)
+MicroOS_Status_t MicroOS_AddTask(uint8_t id, char *Taskname,MicroOS_TaskFunction_t TaskFunction, void *Userdata, uint32_t Period)
 {
     MICROOS_CHECK_PTR(MicroOS_Task_Handle);
     MICROOS_CHECK_ID(id);
@@ -44,13 +44,14 @@ MicroOS_Status_t MicroOS_AddTask(uint8_t id, MicroOS_TaskFunction_t TaskFunction
     {
         MicroOS_Task_Handle->TaskNum++;
     }
+    MicroOS_Task_Handle->Tasks[id].name = Taskname;
     MicroOS_Task_Handle->Tasks[id].TaskFunction = TaskFunction;
     MicroOS_Task_Handle->Tasks[id].Userdata = Userdata;
     MicroOS_Task_Handle->Tasks[id].Period = Period;
     MicroOS_Task_Handle->Tasks[id].LastRunTime = 0;
     MicroOS_Task_Handle->Tasks[id].IsRunning = true;
     MicroOS_Task_Handle->Tasks[id].IsUsed = true;
-    MicroOS_Task_Handle->Tasks[id].IsSleeping = false; // 不休眠
+    MicroOS_Task_Handle->Tasks[id].IsSleeping = false;
 
     return MICROOS_OK;
 }
@@ -311,7 +312,7 @@ static void MicroOS_OSEvent_Init(void)
     OSEvent.free_event = &OSEvent.EventPools[0]; // 空闲事件链表
 }
 
-MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, MicroOS_EventFunction_t EventFunction, void *Userdata)
+MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name,MicroOS_EventFunction_t EventFunction, void *Userdata)
 {
     MICROOS_CHECK_PTR(EventFunction);
     MicroOS_Event_Sub_t *p = OSEvent.active_event;
@@ -319,6 +320,7 @@ MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, MicroOS_EventFunction_t Event
     {
         if (p->id == id)
         {
+            p->name = name;
             p->EventFunction = EventFunction;
             p->IsRunning = true;
             p->Userdata = Userdata;

@@ -34,11 +34,12 @@ extern "C"
  * @brief Registers a new event or updates an existing one.
  *
  * @param id            Unique event identifier.
+ * @param name          Event name
  * @param EventFunction Callback function to be executed when the event is triggered.
  * @param Userdata      Pointer to user-defined data passed to the callback function.
  * @return MicroOS_Status_t Returns MICROOS_OK on success or an error code if the event pool is full.
  */
-extern MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, MicroOS_EventFunction_t EventFunction, void *Userdata);
+extern MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name,MicroOS_EventFunction_t EventFunction, void *Userdata);
 
 /**
  * @brief Deletes an event from the active event list.
@@ -115,12 +116,13 @@ extern MicroOS_Status_t MicroOS_Init(void);
 /**
  * @brief Add a task to the scheduler
  * @param id Task ID (also represents priority; must be unique and less than MICROOS_TASK_SIZE)
+ * @param Taskname Task name
  * @param TaskFunction Pointer to the task function
  * @param Userdata Pointer to user data
  * @param Period Task period in milliseconds
  * @return MicroOS_Status_t Status code
  */
-extern MicroOS_Status_t MicroOS_AddTask(uint8_t id, MicroOS_TaskFunction_t TaskFunction, void *Userdata, uint32_t Period);
+extern MicroOS_Status_t MicroOS_AddTask(uint8_t id, char *Taskname,MicroOS_TaskFunction_t TaskFunction, void *Userdata, uint32_t Period);
 
 /**
  * @brief Start the MicroOS scheduler and begin running tasks

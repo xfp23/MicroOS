@@ -58,6 +58,7 @@ typedef struct
     bool IsUsed;                  // Indicates if the task is currently in use
     bool IsRunning;               // Indicates if the task is currently running
     bool IsSleeping;              // Indicates if the task is currently sleeping
+    char *name;                   // Task name
     uint32_t SleepTicks;          // Number of ticks the task is sleeping
     uint32_t Period;              // Task period in milliseconds
     uint32_t LastRunTime;         // Last run time in ticks
@@ -100,6 +101,7 @@ typedef struct
 typedef struct MicroOS_Event_Sub_t
 {
     uint8_t id;                     // event unique id
+    char *name;                     // event name
     bool IsRunning;                 // Whether to run
     bool IsUsed;                    // Whether to used
     volatile uint16_t TriggerCount; // Number of triggers
