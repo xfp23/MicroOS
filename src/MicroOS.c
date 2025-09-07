@@ -2,32 +2,109 @@
 #include "stdlib.h"
 #include "string.h"
 
+#if MICROOS_TASKENABLE
 static volatile MicroOS_Task_t MicroOS = {0}; // 任务对象
 
-static MicroOS_Event_t OSEvent = {0}; // 事件对象
+static MicroOS_Task_Handle_t const MicroOS_Task_Handle = &MicroOS;
 
 static MicroOS_OSdelay_t OSdelay = {0}; // delay对象
 
 static void MicroOS_OSdelay_Init(void);
 
 static void MicroOS_OSdelay_Tick(void);
+#endif
+
+
+#if MICROOS_EVENTENABLE
+static MicroOS_Event_t OSEvent = {0}; // 事件对象
 
 static void MicroOS_OSEvent_Init(void);
 
 static void MicroOS_DispatchAllEvents(void);
+#endif
 
-static MicroOS_Task_Handle_t const MicroOS_Task_Handle = &MicroOS;
 
 MicroOS_Status_t MicroOS_Init()
 {
-    MICROOS_CHECK_PTR(MicroOS_Task_Handle);
 
+#if MICROOS_TASKENABLE
+    MICROOS_CHECK_PTR(MicroOS_Task_Handle);
     MicroOS_Task_Handle->MaxTasks = MICROOS_TASK_SIZE;
     MicroOS_Task_Handle->TaskNum = 0;
     MicroOS_Task_Handle->TickCount = 0;
     MicroOS_Task_Handle->CurrentTaskId = 0;
     MicroOS_OSdelay_Init();
+#endif
+
+#if MICROOS_EVENTENABLE
     MicroOS_OSEvent_Init();
+#endif
+    return MICROOS_OK;
+}
+
+void MicroOS_StartScheduler(void)
+{
+
+    while (1)
+    {
+#if MICROOS_EVENTENABLE
+        MicroOS_DispatchAllEvents(); // 遍历事件槽
+#endif
+
+#if MICROOS_TASKENABLE
+        // 遍历所有任务
+        for (uint8_t i = 0; i < MICROOS_TASK_SIZE; i++)
+        {
+            if (!MicroOS_Task_Handle->Tasks[i].IsUsed)
+                continue;
+            if (!MicroOS_Task_Handle->Tasks[i].IsRunning)
+                continue;
+            uint32_t currentTime = MicroOS_Task_Handle->TickCount;
+
+            if (MicroOS_Task_Handle->Tasks[i].IsSleeping && currentTime - MicroOS_Task_Handle->Tasks[i].LastRunTime >= MicroOS_Task_Handle->Tasks[i].SleepTicks)
+            {
+                MicroOS_Task_Handle->Tasks[i].IsSleeping = false;
+                MicroOS_Task_Handle->Tasks[i].SleepTicks = 0;
+            }
+            if (MicroOS_Task_Handle->Tasks[i].IsSleeping)
+                continue;
+            if ((uint32_t)(currentTime - MicroOS_Task_Handle->Tasks[i].LastRunTime) >= MicroOS_Task_Handle->Tasks[i].Period)
+            {
+                MicroOS_Task_Handle->CurrentTaskId = i; // 当前任务ID
+                MicroOS_Task_Handle->Tasks[i].TaskFunction(MicroOS_Task_Handle->Tasks[i].Userdata);
+                MicroOS_Task_Handle->Tasks[i].LastRunTime = currentTime;
+            }
+        }
+#endif
+    }
+}
+
+
+
+#if MICROOS_TASKENABLE
+
+MicroOS_Status_t MicroOS_TickHandler(void)
+{
+    MICROOS_CHECK_PTR(MicroOS_Task_Handle);
+
+    MicroOS_Task_Handle->TickCount++;
+    MicroOS_OSdelay_Tick();
+    return MICROOS_OK;
+}
+
+MicroOS_Status_t MicroOS_delay(uint32_t Ticks)
+{
+    MICROOS_CHECK_PTR(MicroOS_Task_Handle);
+
+    if (Ticks == 0)
+    {
+        return MICROOS_INVALID_PARAM;
+    }
+    uint32_t startTick = MicroOS_Task_Handle->TickCount;
+    while ((MicroOS_Task_Handle->TickCount - startTick) < Ticks)
+    {
+        // 等待直到指定的毫秒数过去
+    }
     return MICROOS_OK;
 }
 
@@ -52,48 +129,6 @@ MicroOS_Status_t MicroOS_AddTask(uint8_t id, char *Taskname,MicroOS_TaskFunction
     MicroOS_Task_Handle->Tasks[id].IsRunning = true;
     MicroOS_Task_Handle->Tasks[id].IsUsed = true;
     MicroOS_Task_Handle->Tasks[id].IsSleeping = false;
-
-    return MICROOS_OK;
-}
-
-void MicroOS_StartScheduler(void)
-{
-
-    while (1)
-    {
-        MicroOS_DispatchAllEvents(); // 遍历事件槽
-        // 遍历所有任务
-        for (uint8_t i = 0; i < MICROOS_TASK_SIZE; i++)
-        {
-            if (!MicroOS_Task_Handle->Tasks[i].IsUsed)
-                continue;
-            if (!MicroOS_Task_Handle->Tasks[i].IsRunning)
-                continue;
-            uint32_t currentTime = MicroOS_Task_Handle->TickCount;
-
-            if (MicroOS_Task_Handle->Tasks[i].IsSleeping && currentTime - MicroOS_Task_Handle->Tasks[i].LastRunTime >= MicroOS_Task_Handle->Tasks[i].SleepTicks)
-            {
-                MicroOS_Task_Handle->Tasks[i].IsSleeping = false;
-                MicroOS_Task_Handle->Tasks[i].SleepTicks = 0;
-            }
-            if (MicroOS_Task_Handle->Tasks[i].IsSleeping)
-                continue;
-            if ((uint32_t)(currentTime - MicroOS_Task_Handle->Tasks[i].LastRunTime) >= MicroOS_Task_Handle->Tasks[i].Period)
-            {
-                MicroOS_Task_Handle->CurrentTaskId = i; // 当前任务ID
-                MicroOS_Task_Handle->Tasks[i].TaskFunction(MicroOS_Task_Handle->Tasks[i].Userdata);
-                MicroOS_Task_Handle->Tasks[i].LastRunTime = currentTime;
-            }
-        }
-    }
-}
-
-MicroOS_Status_t MicroOS_TickHandler(void)
-{
-    MICROOS_CHECK_PTR(MicroOS_Task_Handle);
-
-    MicroOS_Task_Handle->TickCount++;
-    MicroOS_OSdelay_Tick();
 
     return MICROOS_OK;
 }
@@ -178,21 +213,6 @@ MicroOS_Status_t MicroOS_WakeupTask(uint8_t id)
     return MICROOS_OK;
 }
 
-MicroOS_Status_t MicroOS_delay(uint32_t Ticks)
-{
-    MICROOS_CHECK_PTR(MicroOS_Task_Handle);
-
-    if (Ticks == 0)
-    {
-        return MICROOS_INVALID_PARAM;
-    }
-    uint32_t startTick = MicroOS_Task_Handle->TickCount;
-    while ((MicroOS_Task_Handle->TickCount - startTick) < Ticks)
-    {
-        // 等待直到指定的毫秒数过去
-    }
-    return MICROOS_OK;
-}
 
 // 初始化任务池
 static void MicroOS_OSdelay_Init(void)
@@ -298,6 +318,9 @@ void MicroOS_OSdelay_Remove(uint8_t id)
         }
     }
 }
+#endif
+
+#if MICROOS_EVENTENABLE
 
 static void MicroOS_OSEvent_Init(void)
 {
@@ -437,3 +460,4 @@ static void MicroOS_DispatchAllEvents(void)
         p = p->next;
     }
 }
+#endif

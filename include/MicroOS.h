@@ -31,6 +31,13 @@ extern "C"
 #endif
 
 /**
+ * @brief Initialize the MicroOS instance
+ * @return MicroOS_Status_t Status code
+ */
+extern MicroOS_Status_t MicroOS_Init(void);
+
+#if MICROOS_EVENTENABLE
+/**
  * @brief Registers a new event or updates an existing one.
  *
  * @param id            Unique event identifier.
@@ -71,7 +78,9 @@ extern MicroOS_Status_t MicroOS_SuspendEvent(uint8_t id);
  * @return MicroOS_Status_t Returns MICROOS_OK if the event was found and resumed, otherwise MICROOS_ERROR.
  */
 extern MicroOS_Status_t MicroOS_ResumeEvent(uint8_t id);
+#endif
 
+#if MICROOS_TASKENABLE
 /**
  * @brief blocking delay
  *
@@ -106,12 +115,6 @@ extern bool MicroOS_OSdelayDone(uint8_t id);
  * @param id Task ID
  */
 extern void MicroOS_OSdelay_Remove(uint8_t id);
-
-/**
- * @brief Initialize the MicroOS instance
- * @return MicroOS_Status_t Status code
- */
-extern MicroOS_Status_t MicroOS_Init(void);
 
 /**
  * @brief Add a task to the scheduler
@@ -174,6 +177,7 @@ extern MicroOS_Status_t MicroOS_WakeupTask(uint8_t id);
  * @return MicroOS_Status_t Status code
  */
 extern MicroOS_Status_t MicroOS_DeleteTask(uint8_t id);
+#endif
 
 #ifdef __cplusplus
 }
