@@ -36,9 +36,11 @@
 
 ```c
 #define MICROOS_TASK_SIZE    10       // 最大任务数
-#define OS_DELAY_POOLSIZE    10       // 最大 OSdelay 条目数
+#define OS_DELAY_POOLSIZE    0        // 最大 OSdelay 条目数（0 = 禁用）
 #define OS_EVENT_POOLSIZE    10       // 最大事件条目数
 #define MICROOS_FREQ_HZ      1000     // 调度节拍频率，单位Hz（需与硬件定时器匹配）
+#define MICROOS_TASKENABLE   0        // 启用任务调度器（0 = 禁用，1 = 启用）
+#define MICROOS_EVENTENABLE  1        // 启用事件系统（0 = 禁用，1 = 启用）
 ```
 
 ### **3.2 时间转换宏**
@@ -64,12 +66,13 @@ typedef struct {
     bool IsUsed;
     bool IsRunning;
     bool IsSleeping;
+    char *name;                   // 任务名称
     uint32_t SleepTicks;
-    uint32_t Period;
+    uint32_t Period;              // 任务周期，单位毫秒
     uint32_t LastRunTime;
     void (*TaskFunction)(void*);
     void* Userdata;
-} MicroOS_Task_t;
+} MicroOS_Task_Sub_t;
 ```
 
 ### **4.2 事件结构体**
@@ -77,9 +80,10 @@ typedef struct {
 ```c
 typedef struct MicroOS_Event_Sub_t {
     uint8_t id;
+    char *name;                     // 事件名称
     bool IsRunning;
     bool IsUsed;
-    bool IsTriggered;
+    volatile uint16_t TriggerCount; // 触发次数
     void (*EventFunction)(void *data);
     void *Userdata;
     struct MicroOS_Event_Sub_t *next;
@@ -90,9 +94,11 @@ typedef struct MicroOS_Event_Sub_t {
 
 ```c
 typedef struct {
-    MicroOS_Task_t Tasks[MICROOS_TASK_SIZE];
+    MicroOS_Task_Sub_t Tasks[MICROOS_TASK_SIZE];
     uint32_t TickCount;
+    uint32_t MaxTasks;
     uint8_t CurrentTaskId;
+    uint8_t TaskNum;
 } MicroOS_Task_t;
 ```
 
@@ -114,13 +120,15 @@ MicroOS_Status_t MicroOS_Init(void);
 
 ```c
 MicroOS_Status_t MicroOS_AddTask(uint8_t id,
+                                 char *Taskname,
                                  MicroOS_TaskFunction_t TaskFunction,
                                  void *Userdata,
-                                 uint32_t PeriodTicks);
+                                 uint32_t Period);
 ```
 
 * **id:** 任务 ID（范围 0 到 MICROOS\_TASK\_SIZE-1）。
-* **PeriodTicks:** 执行周期，单位为节拍（Ticks），可用 `OS_MS_TICKS()` 转换毫秒为节拍。
+* **Taskname:** 任务名称（字符串标识符）。
+* **Period:** 执行周期，单位为毫秒。
 
 ---
 
@@ -184,6 +192,7 @@ void MicroOS_OSdelay_Remove(uint8_t id);
 
 ```c
 MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id,
+                                       char *name,
                                        MicroOS_EventFunction_t EventFunction,
                                        void *Userdata);
 
@@ -196,7 +205,7 @@ MicroOS_Status_t MicroOS_SuspendEvent(uint8_t id);
 MicroOS_Status_t MicroOS_ResumeEvent(uint8_t id);
 ```
 
-* `RegisterEvent` – 添加或更新事件回调。
+* `RegisterEvent` – 添加或更新事件回调（带名称）。
 * `DeleteEvent` – 从活动事件列表中移除事件。
 * `TriggerEvent` – 标记事件为触发状态，调度循环中执行。
 * `SuspendEvent` – 临时禁止事件执行。
@@ -216,8 +225,8 @@ void MyTask(void *param) {
 
 int main(void) {
     MicroOS_Init();
-    MicroOS_RegisterEvent(0, MyEventHandler, NULL);
-    MicroOS_AddTask(0, MyTask, NULL, OS_MS_TICKS(100));
+    MicroOS_RegisterEvent(0, "MyEvent", MyEventHandler, NULL);
+    MicroOS_AddTask(0, "MyTask", MyTask, NULL, 100);
     MicroOS_StartScheduler();
 }
 ```
@@ -240,8 +249,8 @@ void UART_Task(void *param) {
 int main(void) {
     MicroOS_Init();
 
-    MicroOS_AddTask(0, LED_Task, NULL, OS_MS_TICKS(100));
-    MicroOS_AddTask(1, UART_Task, NULL, OS_MS_TICKS(10));
+    MicroOS_AddTask(0, "LED_Task", LED_Task, NULL, 100);
+    MicroOS_AddTask(1, "UART_Task", UART_Task, NULL, 10);
 
     MicroOS_StartScheduler();
 }
@@ -261,7 +270,7 @@ void SysTick_Handler(void) {
 void Sensor_Task(void *param) {
     static bool firstRun = true;
     if(firstRun) {
-        MicroOS_SleepTask(0, OS_MS_TICKS(500));  // 睡眠500ms
+        MicroOS_SleepTask(0, 500);  // 睡眠500ms
         firstRun = false;
         return;
     }
@@ -277,7 +286,7 @@ void Comm_Task(void *param) {
     static bool waiting = false;
 
     if(!waiting) {
-        MicroOS_OSdelay(1, OS_MS_TICKS(200));  // 200ms延时
+        MicroOS_OSdelay(1, 200);  // 200ms延时
         waiting = true;
     }
 
@@ -291,12 +300,32 @@ void Comm_Task(void *param) {
 
 ---
 
-## **7. 限制**
+## **7. 功能配置**
+
+### **7.1 任务调度器**
+* **默认禁用**（`MICROOS_TASKENABLE = 0`）
+* 设置 `MICROOS_TASKENABLE = 1` 启用任务调度
+* 禁用时，所有任务相关 API 不会被编译
+
+### **7.2 事件系统**
+* **默认启用**（`MICROOS_EVENTENABLE = 1`）
+* 设置 `MICROOS_EVENTENABLE = 0` 禁用事件系统
+* 禁用时，所有事件相关 API 不会被编译
+
+### **7.3 延时系统**
+* **默认禁用**（`OS_DELAY_POOLSIZE = 0`）
+* 设置 `OS_DELAY_POOLSIZE > 0` 启用 OSdelay 功能
+* 禁用时，所有延时相关 API 不会被编译
+
+---
+
+## **8. 限制**
 
 * 仅支持合作式调度（无抢占）。
 * 所有任务共享单一调用栈。
 * 任务优先级通过 ID 和周期隐式体现。
-* OSdelay 需轮询检测。
+* OSdelay 需轮询检测（启用时）。
 * 事件池大小在编译时固定（由 `OS_EVENT_POOLSIZE` 定义）。
+* 任务和延时系统是可选的，可在编译时禁用。
 
 ---
