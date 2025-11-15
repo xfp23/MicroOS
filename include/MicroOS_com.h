@@ -1,5 +1,5 @@
-#ifndef MICROOS_COMMON_H
-#define MICROOS_COMMON_H
+#ifndef MICROOS_COM_H
+#define MICROOS_COM_H
 
 /**
  * @file MicroOS_types.h

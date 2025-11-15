@@ -22,13 +22,19 @@
  */
 
 #include "MicroOS_types.h"
-#include "MicroOS_Common.h"
+#include "MicroOS_com.h"
 #include "MicroOS_conf.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+/**
+ * @brief The MicroOS obj handler
+ * 
+ */
+extern MicroOS_Task_Handle_t const MicroOS_Task_Handle;
 
 /**
  * @brief Initialize the MicroOS instance
