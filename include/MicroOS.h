@@ -34,7 +34,7 @@ extern "C"
  * @brief The MicroOS obj handler
  * 
  */
-extern MicroOS_Task_Handle_t const MicroOS_Task_Handle;
+extern volatile MicroOS_Task_Handle_t const MicroOS_Task_Handle;
 
 /**
  * @brief Initialize the MicroOS instance
@@ -176,6 +176,14 @@ extern MicroOS_Status_t MicroOS_SleepTask(uint8_t id, uint32_t Ticks);
  * @return MicroOS_Status_t Status code
  */
 extern MicroOS_Status_t MicroOS_WakeupTask(uint8_t id);
+
+/**
+ * @brief Rest the task record Ticks
+ *
+ * @param id task id
+ * @return MicroOS_Status_t Status code
+ */
+extern MicroOS_Status_t MicroOS_ResetTask(uint8_t id);
 
 /**
  * @brief Delete the task with the specified ID

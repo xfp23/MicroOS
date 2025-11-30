@@ -5,7 +5,7 @@
 #if MICROOS_TASKENABLE
 static volatile MicroOS_Task_t MicroOS = {0}; // 任务对象
 
-MicroOS_Task_Handle_t const MicroOS_Task_Handle = &MicroOS;
+static volatile MicroOS_Task_Handle_t const MicroOS_Task_Handle = &MicroOS;
 
 static MicroOS_OSdelay_t OSdelay = {0}; // delay对象
 
@@ -33,7 +33,7 @@ MicroOS_Status_t MicroOS_Init()
     MicroOS_Task_Handle->TaskNum = 0;
     MicroOS_Task_Handle->TickCount = 0;
     MicroOS_Task_Handle->CurrentTaskId = 0;
-    MicroOS_OSdelay_Init();
+     MicroOS_OSdelay_Init();
 #endif
 
 #if MICROOS_EVENTENABLE
@@ -88,7 +88,7 @@ MicroOS_Status_t MicroOS_TickHandler(void)
     MICROOS_CHECK_PTR(MicroOS_Task_Handle);
 
     MicroOS_Task_Handle->TickCount++;
-    MicroOS_OSdelay_Tick();
+     MicroOS_OSdelay_Tick();
     return MICROOS_OK;
 }
 
@@ -143,6 +143,22 @@ MicroOS_Status_t MicroOS_SuspendTask(uint8_t id)
     }
 
     MicroOS_Task_Handle->Tasks[id].IsRunning = false;
+    return MICROOS_OK;
+}
+
+MicroOS_Status_t MicroOS_ResetTask(uint8_t id)
+{
+    MICROOS_CHECK_PTR(MicroOS_Task_Handle);
+    MICROOS_CHECK_ID(id);
+    if (!MicroOS_Task_Handle->Tasks[id].IsUsed)
+    {
+        return MICROOS_NOT_INITIALIZED;
+    }
+    uint32_t nowTime = MicroOS_Task_Handle->TickCount;
+
+    MicroOS_Task_Handle->Tasks[id].LastRunTime = nowTime;
+    MicroOS_Task_Handle->Tasks[id].IsRunning = 0;
+    MicroOS_Task_Handle->Tasks[id].SleepTicks = 0;
     return MICROOS_OK;
 }
 
