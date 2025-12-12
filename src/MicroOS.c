@@ -5,7 +5,7 @@
 #if MICROOS_TASKENABLE
 static volatile MicroOS_Task_t MicroOS = {0}; // 任务对象
 
-static volatile MicroOS_Task_Handle_t const MicroOS_Task_Handle = &MicroOS;
+volatile MicroOS_Task_Handle_t const MicroOS_Task_Handle = &MicroOS;
 
 static MicroOS_OSdelay_t OSdelay = {0}; // delay对象
 
