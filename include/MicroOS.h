@@ -146,6 +146,13 @@ extern void MicroOS_StartScheduler(void);
 extern MicroOS_Status_t MicroOS_TickHandler(void);
 
 /**
+ * @brief Get MicroOS Tick count
+ * 
+ * @return uint32_t Tick count
+ */
+extern uint32_t MicroOS_GetTick();
+
+/**
  * @brief Suspend the task with the specified ID
  * @param id Task ID
  * @return MicroOS_Status_t Status code

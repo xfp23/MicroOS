@@ -92,6 +92,11 @@ MicroOS_Status_t MicroOS_TickHandler(void)
     return MICROOS_OK;
 }
 
+uint32_t MicroOS_GetTick()
+{
+    return MicroOS_Task_Handle->TickCount;
+}
+
 MicroOS_Status_t MicroOS_delay(uint32_t Ticks)
 {
     MICROOS_CHECK_PTR(MicroOS_Task_Handle);

@@ -18,7 +18,7 @@ extern "C" {
 #endif
 
 /* -------------------- MicroOS Version -------------------- */
-#define MICROOS_VERSION_MAJOR    "1.0.0"    ///< MicroOS version
+#define MICROOS_VERSION_MAJOR    "1.1.0"    ///< MicroOS version
 
 /* -------------------- MicroOS System Frequency -------------------- */
 #define MICROOS_FREQ_HZ          1000        ///< System clock frequency (Hz)
