@@ -152,7 +152,17 @@ Must be called inside the hardware timer ISR every `1/MICROOS_FREQ_HZ` seconds t
 
 ---
 
-### **5.5 Task Control**
+### **5.5 Get System Tick count**
+
+```c
+uint32_t MicroOS_GetTick(void);
+```
+
+Get system ticks
+
+---
+
+### **5.6 Task Control**
 
 ```c
 MicroOS_Status_t MicroOS_SuspendTask(uint8_t id);
@@ -170,7 +180,7 @@ MicroOS_Status_t MicroOS_WakeupTask(uint8_t id);
 
 ---
 
-### **5.6 Delay Management**
+### **5.7 Delay Management**
 
 ```c
 MicroOS_Status_t MicroOS_delay(uint32_t Ticks);
@@ -186,7 +196,7 @@ void MicroOS_OSdelay_Remove(uint8_t id);
 
 ---
 
-### **5.7 Event Management**
+### **5.8 Event Management**
 
 #### **API**
 

@@ -152,7 +152,17 @@ MicroOS_Status_t MicroOS_TickHandler(void);
 
 ---
 
-### **5.5 任务控制**
+### **5.5 Get System Tick count**
+
+```c
+uint32_t MicroOS_GetTick(void);
+```
+
+Get system ticks
+
+---
+
+### **5.6 任务控制**
 
 ```c
 MicroOS_Status_t MicroOS_SuspendTask(uint8_t id);
@@ -170,7 +180,7 @@ MicroOS_Status_t MicroOS_WakeupTask(uint8_t id);
 
 ---
 
-### **5.6 延时管理**
+### **5.7 延时管理**
 
 ```c
 MicroOS_Status_t MicroOS_delay(uint32_t Ticks);
@@ -186,7 +196,7 @@ void MicroOS_OSdelay_Remove(uint8_t id);
 
 ---
 
-### **5.7 事件管理**
+### **5.8 事件管理**
 
 #### **API**
 
