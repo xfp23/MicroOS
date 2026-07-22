@@ -31,6 +31,10 @@ extern "C"
 /* -------------------- Event Module Configuration -------------------- */
 #define OS_EVENT_POOLSIZE 10 ///< Event pool size
 
+/* -------------------- Queue Module Configuration -------------------- */
+#define MICROOS_QUEUE_DEPTH 256
+#define MICROOS_QUEUE_MSG_SIZE 32
+
 #ifdef __cplusplus
 }
 #endif

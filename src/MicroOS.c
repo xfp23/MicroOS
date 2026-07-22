@@ -340,6 +340,8 @@ static void MicroOS_OSEvent_Init(void)
     OSEvent.EventPools[OS_EVENT_POOLSIZE - 1].next = NULL;
     OSEvent.active_event = NULL;
     OSEvent.free_event = &OSEvent.EventPools[0]; // 空闲事件链表
+
+    MicroOSQueue_Init(&OSEvent.Event_queue);
 }
 
 MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunction_t EventFunction)
@@ -353,7 +355,8 @@ MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunc
             p->name = name;
             p->EventFunction = EventFunction;
             p->IsRunning = true;
-            p->Userdata = NULL;
+            // p->Userdata = NULL;
+            memset(&p->msg,0,sizeof(MicroOSQueue_Message_t));
             p->TriggerCount = 0;
             p->IsUsed = true;
             return MICROOS_OK;
@@ -370,7 +373,8 @@ MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunc
 
     node->id = id;
     node->EventFunction = EventFunction;
-    node->Userdata = NULL;
+    // node->Userdata = NULL;
+    memset(&node->msg,0,sizeof(MicroOSQueue_Message_t));
     node->IsRunning = true;
     node->TriggerCount = 0;
     node->IsUsed = true;
@@ -407,14 +411,20 @@ void MicroOS_DeleteEvent(uint8_t id)
     }
 }
 
-MicroOS_Status_t MicroOS_TriggerEvent(uint8_t id, const void *data)
+MicroOS_Status_t MicroOS_TriggerEvent(uint8_t id, const void *data,size_t data_len)
 {
     MicroOS_Event_Sub_t *p = OSEvent.active_event;
     while (p)
     {
         if (p->id == id && p->IsUsed && p->IsRunning)
         {
-            p->Userdata = (void *)data;
+            // p->Userdata = (void *)data;
+            if(MicroOSQueue_IsFull(&OSEvent.Event_queue))
+            {
+                return MICROOS_QUEUE_FULL;
+            }
+            
+            MicroOSQueue_Push(&OSEvent.Event_queue,data,data_len);
             p->TriggerCount++;
             return MICROOS_OK;
         }
@@ -461,9 +471,10 @@ static void MicroOS_DispatchAllEvents(void)
     {
         if (p->IsUsed && p->IsRunning && p->TriggerCount > 0)
         {
+            MicroOSQueue_Pop(&OSEvent.Event_queue,p->msg.data,&p->msg.len);
             OSEvent.CurrentEventId = p->id;
-            p->EventFunction(p->Userdata);
-            p->Userdata = NULL;
+            p->EventFunction(p->msg);
+            // p->Userdata = NULL;
             p->TriggerCount--;
         }
         p = p->next;

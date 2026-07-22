@@ -14,6 +14,7 @@
 #include "stdint.h"
 #include "stdbool.h"
 #include "MicroOS_conf.h"
+#include "MicroOSQueue_types.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -30,7 +31,7 @@ typedef void (*MicroOS_TaskFunction_t)(void *Userdata);
  * @brief Event function prototype
  * @param Userdata Pointer to user data
  */
-typedef void (*MicroOS_EventFunction_t)(void *Userdata);
+typedef void (*MicroOS_EventFunction_t)(MicroOSQueue_Message_t Userdata);
 
 /**
  * @brief OSdelay function prototype
@@ -49,6 +50,8 @@ typedef enum
     MICROOS_INVALID_PARAM,   /**< Invalid parameter */
     MICROOS_NOT_INITIALIZED, /**< MicroOS not initialized */
     MICROOS_BUSY,            /**< MicroOS is busy */
+    MICROOS_QUEUE_FULL,
+    MICROOS_QUEUE_EMPTY,
 } MicroOS_Status_t;
 
 /**
@@ -113,8 +116,9 @@ typedef struct MicroOS_Event_Sub_t
     bool IsRunning;                 // Whether to run
     bool IsUsed;                    // Whether to used
     volatile uint16_t TriggerCount; // Number of triggers
-    void (*EventFunction)(void *data);
-    void *Userdata;
+    void (*EventFunction)(MicroOSQueue_Message_t data);
+    // void *Userdata;
+    MicroOSQueue_Message_t msg;                         // queue message
     struct MicroOS_Event_Sub_t *next; // next node
 } MicroOS_Event_Sub_t;
 
@@ -125,6 +129,7 @@ typedef struct
     MicroOS_Event_Sub_t *active_event;                 // active events
     uint8_t CurrentEventId;                            // Current event ID
     uint8_t EventNum;                                  // number of surviving events
+    MicroOSQueue_Obj_t Event_queue;                     // Event queue
 } MicroOS_Event_t;
 
 #ifdef __cplusplus

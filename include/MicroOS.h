@@ -22,6 +22,7 @@
  */
 
 #include "MicroOS_types.h"
+#include "MicroOSQueue.h"
 #include "MicroOS_com.h"
 #include "MicroOS_conf.h"
 
