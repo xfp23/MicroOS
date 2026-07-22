@@ -25,7 +25,6 @@ static void MicroOS_OSdelay_StartScheduler(void);
 MicroOS_Status_t MicroOS_Init()
 {
 
-    // MICROOS_CHECK_PTR(MicroOS_Task_Handle);
     MicroOS_Task_Handle->MaxTasks = MICROOS_TASK_SIZE;
     MicroOS_Task_Handle->TaskNum = 0;
     MicroOS_Task_Handle->TickCount = 0;
