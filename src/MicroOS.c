@@ -2,43 +2,37 @@
 #include "stdlib.h"
 #include "string.h"
 
-#if MICROOS_TASKENABLE
-static volatile MicroOS_Task_t MicroOS = {0}; // 任务对象
+static MicroOS_Task_t MicroOS = {0}; // 任务对象
 
-volatile MicroOS_Task_Handle_t const MicroOS_Task_Handle = &MicroOS;
+static MicroOS_Task_Handle_t const MicroOS_Task_Handle = &MicroOS;
 
 static MicroOS_OSdelay_t OSdelay = {0}; // delay对象
 
 static void MicroOS_OSdelay_Init(void);
 
 static void MicroOS_OSdelay_Tick(void);
-#endif
 
-
-#if MICROOS_EVENTENABLE
 static MicroOS_Event_t OSEvent = {0}; // 事件对象
 
 static void MicroOS_OSEvent_Init(void);
 
 static void MicroOS_DispatchAllEvents(void);
-#endif
 
+static void MicroOS_OSdelay_Remove(uint8_t id);
+
+static void MicroOS_OSdelay_StartScheduler(void);
 
 MicroOS_Status_t MicroOS_Init()
 {
 
-#if MICROOS_TASKENABLE
-    MICROOS_CHECK_PTR(MicroOS_Task_Handle);
+    // MICROOS_CHECK_PTR(MicroOS_Task_Handle);
     MicroOS_Task_Handle->MaxTasks = MICROOS_TASK_SIZE;
     MicroOS_Task_Handle->TaskNum = 0;
     MicroOS_Task_Handle->TickCount = 0;
     MicroOS_Task_Handle->CurrentTaskId = 0;
-     MicroOS_OSdelay_Init();
-#endif
+    MicroOS_OSdelay_Init();
 
-#if MICROOS_EVENTENABLE
     MicroOS_OSEvent_Init();
-#endif
     return MICROOS_OK;
 }
 
@@ -47,48 +41,44 @@ void MicroOS_StartScheduler(void)
 
     while (1)
     {
-#if MICROOS_EVENTENABLE
-        MicroOS_DispatchAllEvents(); // 遍历事件槽
-#endif
 
-#if MICROOS_TASKENABLE
+        MicroOS_DispatchAllEvents(); // 遍历事件槽
+
+        MicroOS_OSdelay_StartScheduler(); // OSdelay自动处理
+
         // 遍历所有任务
         for (uint8_t i = 0; i < MICROOS_TASK_SIZE; i++)
         {
-            if (!MicroOS_Task_Handle->Tasks[i].IsUsed)
+            volatile MicroOS_Task_Sub_t *t = &MicroOS_Task_Handle->Tasks[i];
+
+            if (!t->IsUsed || !t->IsRunning)
                 continue;
-            if (!MicroOS_Task_Handle->Tasks[i].IsRunning)
-                continue;
+
             uint32_t currentTime = MicroOS_Task_Handle->TickCount;
 
-            if (MicroOS_Task_Handle->Tasks[i].IsSleeping && currentTime - MicroOS_Task_Handle->Tasks[i].LastRunTime >= MicroOS_Task_Handle->Tasks[i].SleepTicks)
+            if (t->IsSleeping && (currentTime - t->LastRunTime) >= t->SleepTicks)
             {
-                MicroOS_Task_Handle->Tasks[i].IsSleeping = false;
-                MicroOS_Task_Handle->Tasks[i].SleepTicks = 0;
+                t->IsSleeping = false;
+                t->SleepTicks = 0;
             }
-            if (MicroOS_Task_Handle->Tasks[i].IsSleeping)
+            if (t->IsSleeping)
                 continue;
-            if ((uint32_t)(currentTime - MicroOS_Task_Handle->Tasks[i].LastRunTime) >= MicroOS_Task_Handle->Tasks[i].Period)
+
+            if ((uint32_t)(currentTime - t->LastRunTime) >= t->Period)
             {
-                MicroOS_Task_Handle->CurrentTaskId = i; // 当前任务ID
-                MicroOS_Task_Handle->Tasks[i].TaskFunction(MicroOS_Task_Handle->Tasks[i].Userdata);
-                MicroOS_Task_Handle->Tasks[i].LastRunTime = currentTime;
+                MicroOS_Task_Handle->CurrentTaskId = i;
+                t->TaskFunction(t->Userdata);
+                t->LastRunTime = currentTime;
             }
         }
-#endif
     }
 }
 
-
-
-#if MICROOS_TASKENABLE
-
 MicroOS_Status_t MicroOS_TickHandler(void)
 {
-    MICROOS_CHECK_PTR(MicroOS_Task_Handle);
 
     MicroOS_Task_Handle->TickCount++;
-     MicroOS_OSdelay_Tick();
+    MicroOS_OSdelay_Tick();
     return MICROOS_OK;
 }
 
@@ -97,29 +87,12 @@ uint32_t MicroOS_GetTick()
     return MicroOS_Task_Handle->TickCount;
 }
 
-MicroOS_Status_t MicroOS_delay(uint32_t Ticks)
+MicroOS_Status_t MicroOS_AddTask(uint8_t id, char *Taskname, MicroOS_TaskFunction_t TaskFunction, void *Userdata, uint32_t Period)
 {
-    MICROOS_CHECK_PTR(MicroOS_Task_Handle);
-
-    if (Ticks == 0)
-    {
-        return MICROOS_INVALID_PARAM;
-    }
-    uint32_t startTick = MicroOS_Task_Handle->TickCount;
-    while ((MicroOS_Task_Handle->TickCount - startTick) < Ticks)
-    {
-        // 等待直到指定的毫秒数过去
-    }
-    return MICROOS_OK;
-}
-
-MicroOS_Status_t MicroOS_AddTask(uint8_t id, char *Taskname,MicroOS_TaskFunction_t TaskFunction, void *Userdata, uint32_t Period)
-{
-    MICROOS_CHECK_PTR(MicroOS_Task_Handle);
     MICROOS_CHECK_ID(id);
     MICROOS_CHECK_PTR(TaskFunction);
 
-    if (MicroOS_Task_Handle->TaskNum > MICROOS_TASK_SIZE)
+    if (MicroOS_Task_Handle->TaskNum >= MICROOS_TASK_SIZE)
         return MICROOS_ERROR;
 
     if (!MicroOS_Task_Handle->Tasks[id].IsUsed)
@@ -140,7 +113,6 @@ MicroOS_Status_t MicroOS_AddTask(uint8_t id, char *Taskname,MicroOS_TaskFunction
 
 MicroOS_Status_t MicroOS_SuspendTask(uint8_t id)
 {
-    MICROOS_CHECK_PTR(MicroOS_Task_Handle);
     MICROOS_CHECK_ID(id);
     if (!MicroOS_Task_Handle->Tasks[id].IsUsed)
     {
@@ -153,7 +125,6 @@ MicroOS_Status_t MicroOS_SuspendTask(uint8_t id)
 
 MicroOS_Status_t MicroOS_ResetTask(uint8_t id)
 {
-    MICROOS_CHECK_PTR(MicroOS_Task_Handle);
     MICROOS_CHECK_ID(id);
     if (!MicroOS_Task_Handle->Tasks[id].IsUsed)
     {
@@ -169,7 +140,6 @@ MicroOS_Status_t MicroOS_ResetTask(uint8_t id)
 
 MicroOS_Status_t MicroOS_ResumeTask(uint8_t id)
 {
-    MICROOS_CHECK_PTR(MicroOS_Task_Handle);
     MICROOS_CHECK_ID(id);
 
     if (!MicroOS_Task_Handle->Tasks[id].IsUsed)
@@ -182,7 +152,6 @@ MicroOS_Status_t MicroOS_ResumeTask(uint8_t id)
 
 MicroOS_Status_t MicroOS_DeleteTask(uint8_t id)
 {
-    MICROOS_CHECK_PTR(MicroOS_Task_Handle);
     MICROOS_CHECK_ID(id);
 
     if (MicroOS_Task_Handle->Tasks[id].IsRunning)
@@ -198,7 +167,6 @@ MicroOS_Status_t MicroOS_DeleteTask(uint8_t id)
 
 MicroOS_Status_t MicroOS_SleepTask(uint8_t id, uint32_t Ticks)
 {
-    MICROOS_CHECK_PTR(MicroOS_Task_Handle);
     MICROOS_CHECK_ID(id);
 
     if (Ticks == 0)
@@ -220,7 +188,6 @@ MicroOS_Status_t MicroOS_SleepTask(uint8_t id, uint32_t Ticks)
 
 MicroOS_Status_t MicroOS_WakeupTask(uint8_t id)
 {
-    MICROOS_CHECK_PTR(MicroOS_Task_Handle);
     MICROOS_CHECK_ID(id);
 
     if (!MicroOS_Task_Handle->Tasks[id].IsUsed)
@@ -233,7 +200,6 @@ MicroOS_Status_t MicroOS_WakeupTask(uint8_t id)
 
     return MICROOS_OK;
 }
-
 
 // 初始化任务池
 static void MicroOS_OSdelay_Init(void)
@@ -250,7 +216,7 @@ static void MicroOS_OSdelay_Init(void)
 }
 
 // 添加/更新任务
-MicroOS_Status_t MicroOS_OSdelay(uint8_t id, uint32_t Ticks)
+MicroOS_Status_t MicroOS_OSdelay(uint8_t id, MicroOS_OSdelayFunction_t OSdelayFunction, const void *Userdata, uint32_t Ticks)
 {
     MicroOS_OSdelay_Sub_t *p = OSdelay.active_delay;
 
@@ -259,8 +225,10 @@ MicroOS_Status_t MicroOS_OSdelay(uint8_t id, uint32_t Ticks)
     {
         if (p->id == id)
         {
-            p->ms = Ticks;
+            p->tick = Ticks;
             p->IsTimeout = false;
+            p->OSdelayFunction = OSdelayFunction;
+            p->Userdata = (void *)Userdata;
             return MICROOS_OK;
             ;
         }
@@ -275,8 +243,10 @@ MicroOS_Status_t MicroOS_OSdelay(uint8_t id, uint32_t Ticks)
     OSdelay.free_delay = OSdelay.free_delay->next;
 
     node->id = id;
-    node->ms = Ticks;
+    node->tick = Ticks;
     node->IsTimeout = false;
+    node->OSdelayFunction = OSdelayFunction;
+    node->Userdata = (void *)Userdata;
 
     node->next = OSdelay.active_delay;
     OSdelay.active_delay = node;
@@ -303,10 +273,10 @@ static void MicroOS_OSdelay_Tick(void)
     MicroOS_OSdelay_Sub_t *p = OSdelay.active_delay;
     while (p)
     {
-        if (p->ms > 0)
+        if (p->tick > 0)
         {
-            p->ms--;
-            if (p->ms == 0)
+            p->tick--;
+            if (p->tick == 0)
             {
                 p->IsTimeout = true;
             }
@@ -315,7 +285,7 @@ static void MicroOS_OSdelay_Tick(void)
     }
 }
 
-void MicroOS_OSdelay_Remove(uint8_t id)
+static void MicroOS_OSdelay_Remove(uint8_t id)
 {
     MicroOS_OSdelay_Sub_t **pp = &OSdelay.active_delay;
     while (*pp)
@@ -339,9 +309,24 @@ void MicroOS_OSdelay_Remove(uint8_t id)
         }
     }
 }
-#endif
 
-#if MICROOS_EVENTENABLE
+static void MicroOS_OSdelay_StartScheduler(void)
+{
+    MicroOS_OSdelay_Sub_t *p = OSdelay.active_delay;
+
+    while (p)
+    {
+        if (p->IsTimeout)
+        {
+            p->OSdelayFunction(p->Userdata);
+            p->IsTimeout = false;
+            p->Userdata = NULL;
+            MicroOS_OSdelay_Remove(p->id);
+        }
+
+        p = p->next;
+    }
+}
 
 static void MicroOS_OSEvent_Init(void)
 {
@@ -356,7 +341,7 @@ static void MicroOS_OSEvent_Init(void)
     OSEvent.free_event = &OSEvent.EventPools[0]; // 空闲事件链表
 }
 
-MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name,MicroOS_EventFunction_t EventFunction, void *Userdata)
+MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunction_t EventFunction)
 {
     MICROOS_CHECK_PTR(EventFunction);
     MicroOS_Event_Sub_t *p = OSEvent.active_event;
@@ -367,7 +352,7 @@ MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name,MicroOS_EventFunct
             p->name = name;
             p->EventFunction = EventFunction;
             p->IsRunning = true;
-            p->Userdata = Userdata;
+            p->Userdata = NULL;
             p->TriggerCount = 0;
             p->IsUsed = true;
             return MICROOS_OK;
@@ -384,7 +369,7 @@ MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name,MicroOS_EventFunct
 
     node->id = id;
     node->EventFunction = EventFunction;
-    node->Userdata = Userdata;
+    node->Userdata = NULL;
     node->IsRunning = true;
     node->TriggerCount = 0;
     node->IsUsed = true;
@@ -421,13 +406,14 @@ void MicroOS_DeleteEvent(uint8_t id)
     }
 }
 
-MicroOS_Status_t MicroOS_TriggerEvent(uint8_t id)
+MicroOS_Status_t MicroOS_TriggerEvent(uint8_t id, const void *data)
 {
     MicroOS_Event_Sub_t *p = OSEvent.active_event;
     while (p)
     {
         if (p->id == id && p->IsUsed && p->IsRunning)
         {
+            p->Userdata = (void *)data;
             p->TriggerCount++;
             return MICROOS_OK;
         }
@@ -476,9 +462,9 @@ static void MicroOS_DispatchAllEvents(void)
         {
             OSEvent.CurrentEventId = p->id;
             p->EventFunction(p->Userdata);
+            p->Userdata = NULL;
             p->TriggerCount--;
         }
         p = p->next;
     }
 }
-#endif

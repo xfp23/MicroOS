@@ -3,7 +3,7 @@
 
 /**
  * @file MicroOS_types.h
- * @author (https://github.com/xfp23)
+ * @author (https://xfp23.github.io/)
  * @brief Define types
  * @version 0.1
  * @date 2025-08-31
@@ -20,21 +20,23 @@ extern "C"
 {
 #endif
 
-#if MICROOS_TASKENABLE 
 /**
  * @brief Task function prototype
  * @param Userdata Pointer to user data
  */
 typedef void (*MicroOS_TaskFunction_t)(void *Userdata);
-#endif
 
-#if MICROOS_EVENTENABLE
 /**
  * @brief Event function prototype
  * @param Userdata Pointer to user data
  */
 typedef void (*MicroOS_EventFunction_t)(void *Userdata);
-#endif
+
+/**
+ * @brief OSdelay function prototype
+ * @param Userdata Pointer to user data
+ */
+typedef void (*MicroOS_OSdelayFunction_t)(void *Userdata);
 
 /**
  * @brief MicroOS status codes
@@ -49,7 +51,6 @@ typedef enum
     MICROOS_BUSY,            /**< MicroOS is busy */
 } MicroOS_Status_t;
 
-#if MICROOS_TASKENABLE
 /**
  * @brief Structure representing a scheduled task
  */
@@ -89,8 +90,10 @@ typedef volatile MicroOS_Task_t *MicroOS_Task_Handle_t;
 typedef struct MicroOS_OSdelay_Sub_t
 {
     uint8_t id;                         /**< Delay task ID */
-    volatile uint32_t ms;               /**< Delay time in milliseconds */
+    volatile uint32_t tick;               /**< Delay time in milliseconds */ 
     volatile bool IsTimeout;            /**< Timeout status */
+    void (*OSdelayFunction)(void *);
+    void *Userdata; 
     struct MicroOS_OSdelay_Sub_t *next; /**< Pointer to next delay task in pool */
 } MicroOS_OSdelay_Sub_t;
 
@@ -102,9 +105,7 @@ typedef struct
     uint8_t OSdelayNum;
 
 } MicroOS_OSdelay_t;
-#endif
 
-#if MICROOS_EVENTENABLE
 typedef struct MicroOS_Event_Sub_t
 {
     uint8_t id;                     // event unique id
@@ -125,7 +126,6 @@ typedef struct
     uint8_t CurrentEventId;                            // Current event ID
     uint8_t EventNum;                                  // number of surviving events
 } MicroOS_Event_t;
-#endif
 
 #ifdef __cplusplus
 }

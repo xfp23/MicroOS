@@ -39,7 +39,6 @@
 #define OS_DELAY_POOLSIZE    0        // 最大 OSdelay 条目数（0 = 禁用）
 #define OS_EVENT_POOLSIZE    10       // 最大事件条目数
 #define MICROOS_FREQ_HZ      1000     // 调度节拍频率，单位Hz（需与硬件定时器匹配）
-#define MICROOS_TASKENABLE   0        // 启用任务调度器（0 = 禁用，1 = 启用）
 #define MICROOS_EVENTENABLE  1        // 启用事件系统（0 = 禁用，1 = 启用）
 ```
 
@@ -312,17 +311,17 @@ void Comm_Task(void *param) {
 
 ## **7. 功能配置**
 
-### **7.1 任务调度器**
+### **7.1 任务调度器**(已废弃)
 * **默认禁用**（`MICROOS_TASKENABLE = 0`）
 * 设置 `MICROOS_TASKENABLE = 1` 启用任务调度
 * 禁用时，所有任务相关 API 不会被编译
 
-### **7.2 事件系统**
+### **7.2 事件系统**(已废弃)
 * **默认启用**（`MICROOS_EVENTENABLE = 1`）
 * 设置 `MICROOS_EVENTENABLE = 0` 禁用事件系统
 * 禁用时，所有事件相关 API 不会被编译
 
-### **7.3 延时系统**
+### **7.3 延时系统**(已废弃)
 * **默认禁用**（`OS_DELAY_POOLSIZE = 0`）
 * 设置 `OS_DELAY_POOLSIZE > 0` 启用 OSdelay 功能
 * 禁用时，所有延时相关 API 不会被编译

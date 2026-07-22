@@ -39,7 +39,6 @@ Key features:
 #define OS_DELAY_POOLSIZE    0        // Max OSdelay entries (0 = disabled)
 #define OS_EVENT_POOLSIZE    10       // Max event entries
 #define MICROOS_FREQ_HZ      1000     // Scheduler tick frequency in Hz (must match hardware timer)
-#define MICROOS_TASKENABLE   0        // Enable task scheduler (0 = disabled, 1 = enabled)
 #define MICROOS_EVENTENABLE  1        // Enable event system (0 = disabled, 1 = enabled)
 ````
 
@@ -312,13 +311,13 @@ void Comm_Task(void *param) {
 
 ## **7. Feature Configuration**
 
-### **7.1 Task Scheduler**
+### **7.1 Task Scheduler**(Deprecated)
 * **Disabled by default** (`MICROOS_TASKENABLE = 0`)
 * Set `MICROOS_TASKENABLE = 1` to enable task scheduling
 * When disabled, all task-related APIs are not compiled
 
 ### **7.2 Event System**
-* **Enabled by default** (`MICROOS_EVENTENABLE = 1`)
+* **Enabled by default** (`MICROOS_EVENTENABLE = 1`)(Deprecated)
 * Set `MICROOS_EVENTENABLE = 0` to disable event system
 * When disabled, all event-related APIs are not compiled
 
