@@ -4,12 +4,12 @@
 /**
  * @file MicroOS_types.h
  * @author (https://xfp23.github.io)
- * @brief Define types
+ * @brief Define Tool Macros
  * @version 0.1
  * @date 2025-08-31
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
 
 #ifdef __cplusplus
@@ -25,34 +25,34 @@ extern "C"
 
 // Null pointer check macro
 #define MICROOS_CHECK_PTR(ptr)    \
-do                            \
-{                             \
-    if ((ptr) == NULL)        \
-    {                         \
-        return MICROOS_ERROR; \
-    }                         \
-} while (0)
+    do                            \
+    {                             \
+        if ((ptr) == NULL)        \
+        {                         \
+            return MICROOS_ERROR; \
+        }                         \
+    } while (0)
 
 // Error check macro
 #define MIROOS_CHECK_ERR(err)       \
-do                              \
-{                               \
-    MicroOS_Status_t ret = err; \
-    if (ret != MICROOS_OK)      \
-    {                           \
-        return ret;             \
-    }                           \
-} while (0)
+    do                              \
+    {                               \
+        MicroOS_Status_t ret = err; \
+        if (ret != MICROOS_OK)      \
+        {                           \
+            return ret;             \
+        }                           \
+    } while (0)
 
 // Task ID check macro
 #define MICROOS_CHECK_ID(id)              \
-do                                    \
-{                                     \
-    if (id >= MICROOS_TASK_SIZE)      \
-    {                                 \
-        return MICROOS_INVALID_PARAM; \
-    }                                 \
-} while (0)
+    do                                    \
+    {                                     \
+        if (id >= MICROOS_TASK_SIZE)      \
+        {                                 \
+            return MICROOS_INVALID_PARAM; \
+        }                                 \
+    } while (0)
 
 #ifdef __cplusplus
 }

@@ -61,8 +61,8 @@ typedef struct
     bool IsSleeping;              // Indicates if the task is currently sleeping
     char *name;                   // Task name
     uint32_t SleepTicks;          // Number of ticks the task is sleeping
-    uint32_t Tick;              // Task period in milliseconds
-    uint32_t LastRunTime;         // Last run time in ticks 
+    uint32_t Tick;                // Task period in milliseconds
+    uint32_t LastRunTime;         // Last run time in ticks
     void (*TaskFunction)(void *); // Pointer to the task function
     void *Userdata;               // Pointer to user data
 } MicroOS_Task_Sub_t;
@@ -89,11 +89,11 @@ typedef volatile MicroOS_Task_t *MicroOS_Task_Handle_t;
  */
 typedef struct MicroOS_OSdelay_Sub_t
 {
-    uint8_t id;                         /**< Delay task ID */
-    volatile uint32_t tick;               /**< Delay time in milliseconds */ 
-    volatile bool IsTimeout;            /**< Timeout status */
+    uint8_t id;              /**< Delay task ID */
+    volatile uint32_t tick;  /**< Delay time in milliseconds */
+    volatile bool IsTimeout; /**< Timeout status */
     void (*OSdelayFunction)(void *);
-    void *Userdata; 
+    void *Userdata;
     struct MicroOS_OSdelay_Sub_t *next; /**< Pointer to next delay task in pool */
 } MicroOS_OSdelay_Sub_t;
 

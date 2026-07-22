@@ -44,7 +44,7 @@ extern MicroOS_Status_t MicroOS_Init(void);
  * @param EventFunction Callback function to be executed when the event is triggered.
  * @return MicroOS_Status_t Returns MICROOS_OK on success or an error code if the event pool is full.
  */
-extern MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name,MicroOS_EventFunction_t EventFunction);
+extern MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunction_t EventFunction);
 
 /**
  * @brief Deletes an event from the active event list.
@@ -60,7 +60,7 @@ extern void MicroOS_DeleteEvent(uint8_t id);
  * @param Userdata      Pointer to user-defined data passed to the callback function.
  * @return MicroOS_Status_t Returns MICROOS_OK if the event was found and triggered, otherwise MICROOS_ERROR.
  */
-extern MicroOS_Status_t MicroOS_TriggerEvent(uint8_t id,const void *Userdata);
+extern MicroOS_Status_t MicroOS_TriggerEvent(uint8_t id, const void *Userdata);
 
 /**
  * @brief Suspends an event, preventing it from being executed even if triggered.
@@ -94,7 +94,7 @@ extern MicroOS_Status_t MicroOS_delay(uint32_t Ticks);
  * @param Ticks Delay Ticks num  OS_MS_TICKS(ms)
  * @return MicroOS_Status_t Status code
  */
-extern MicroOS_Status_t MicroOS_OSdelay(uint8_t id,MicroOS_OSdelayFunction_t OSdelayFunction,const void *Userdata, uint32_t Ticks);
+extern MicroOS_Status_t MicroOS_OSdelay(uint8_t id, MicroOS_OSdelayFunction_t OSdelayFunction, const void *Userdata, uint32_t Ticks);
 
 /**
  * @brief Add a task to the scheduler
@@ -105,7 +105,7 @@ extern MicroOS_Status_t MicroOS_OSdelay(uint8_t id,MicroOS_OSdelayFunction_t OSd
  * @param Period Task period in milliseconds
  * @return MicroOS_Status_t Status code
  */
-extern MicroOS_Status_t MicroOS_AddTask(uint8_t id, char *Taskname,MicroOS_TaskFunction_t TaskFunction, void *Userdata, uint32_t Ticks);
+extern MicroOS_Status_t MicroOS_AddTask(uint8_t id, char *Taskname, MicroOS_TaskFunction_t TaskFunction, void *Userdata, uint32_t Ticks);
 
 /**
  * @brief Start the MicroOS scheduler and begin running tasks
@@ -120,7 +120,7 @@ extern void MicroOS_TickHandler(void);
 
 /**
  * @brief Get MicroOS Tick count
- * 
+ *
  * @return uint32_t Tick count
  */
 extern uint32_t MicroOS_GetTick();
