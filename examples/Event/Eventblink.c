@@ -10,7 +10,7 @@ void UserEvent_BlinkLed(void *param) {
 
 // Task that triggers the blink event every 500ms
 void Task_TriggerBlinkEvent(void *param) {
-    MicroOS_TriggerEvent(0);
+    MicroOS_TriggerEvent(0,NULL);
 }
 
 int main(void) {
@@ -20,7 +20,7 @@ int main(void) {
     }
 
     // Register event ID 0 with the LED blink callback
-    MicroOS_RegisterEvent(0, "BlinkEvent", UserEvent_BlinkLed, NULL);
+    MicroOS_RegisterEvent(0, "BlinkEvent", UserEvent_BlinkLed);
 
     // Add a task that triggers the blink event every 500ms
     MicroOS_AddTask(0, "TriggerTask", Task_TriggerBlinkEvent, NULL, 500);

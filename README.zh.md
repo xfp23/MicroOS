@@ -1,254 +1,219 @@
 
-[Click here for English documentation](readme.md)
+[English](README.md)
 
 # **MicroOS 调度器驱动文档**
 
 ## **1. 概述**
 
-`MicroOS` 是一个轻量级的合作式任务调度器，专为资源有限的裸机嵌入式系统设计。它提供了一个简洁灵活的 API，用于管理周期任务、任务延时、事件和任务控制，避免了完整 RTOS 的复杂性和资源消耗。
+`MicroOS` 是一个面向资源受限裸机嵌入式系统设计的轻量级协作式任务调度器。它提供了一套最小化但灵活的 API，用于管理周期任务、任务延时、事件以及任务控制，同时避免完整 RTOS 带来的额外开销。
 
-主要特点：
+主要特性：
 
-* 单实例合作式调度器。
-* 静态任务表，用户自定义任务 ID。
-* 异步回调的事件管理系统。
-* 由硬件定时器中断驱动的基于节拍的时间系统。
-* 使用静态任务池的轻量级延时管理，避免堆碎片化。
-* 可选的任务睡眠机制。
-* 适合 RAM/Flash 资源受限的 MCU。
+* 单实例协作式调度器。
+* 静态任务表，任务数量由用户定义 ID（ID 同时作为优先级使用——ID 越低，任务运行优先级越高）。
+* 事件管理系统，用于异步回调，并支持每次触发传递用户数据。
+* 基于 Tick 的时间系统，由硬件定时器中断驱动。
+* 基于回调的 OSdelay 管理器，使用静态内存池避免堆碎片问题——无需手动轮询。
+* 可选的任务休眠机制。
+* 适用于小型 RAM/Flash 资源的 MCU。
+
+**版本：** `1.2.0`
 
 ---
 
 ## **2. 设计原则**
 
-* **无动态栈分配：** 所有任务共享同一个调用栈（合作式多任务）。
-* **固定大小任务表：** 任务数量编译时定义，宏 `MICROOS_TASK_SIZE`。
-* **静态事件池：** 事件通过预分配池管理，大小由 `OS_EVENT_POOLSIZE` 决定。
-* **基于节拍的调度：** 由硬件 ISR 增加的全局节拍计数器驱动。
-* **延时系统：** 使用静态链表池实现（由 `OS_DELAY_POOLSIZE` 控制）。
-* **用户自定义频率：** `MICROOS_FREQ_HZ` 需与硬件节拍源一致。
+* **无动态任务栈：** 所有任务共享同一个调用栈（协作式多任务）。
+* **固定大小任务表：** 任务数量通过 `MICROOS_TASK_SIZE` 在编译时定义。
+* **静态事件池：** 事件通过预分配内存池 `OS_EVENT_POOLSIZE` 进行管理。
+* **基于 Tick 的调度：** 由硬件 ISR 中递增的全局 Tick 计数器驱动。
+* **基于回调的延时系统：** 使用静态内存池 (`OS_DELAY_POOLSIZE`) 实现。不同于轮询式延时，`MicroOS_OSdelay` 会注册一个回调函数，当延时结束后，调度器会自动调用该回调——无需手动检查是否完成，也无需手动释放资源。
+* **用户自定义频率：** `MICROOS_FREQ_HZ` 必须与硬件 Tick 来源保持一致。
 
 ---
 
 ## **3. 配置**
 
-### **3.1 核心宏**
+所有配置宏位于 `MicroOS_conf.h` 中。
 
 ```c
-#define MICROOS_TASK_SIZE    10       // 最大任务数
-#define OS_DELAY_POOLSIZE    0        // 最大 OSdelay 条目数（0 = 禁用）
-#define OS_EVENT_POOLSIZE    10       // 最大事件条目数
-#define MICROOS_FREQ_HZ      1000     // 调度节拍频率，单位Hz（需与硬件定时器匹配）
-#define MICROOS_EVENTENABLE  1        // 启用事件系统（0 = 禁用，1 = 启用）
-```
+/* -------------------- MicroOS Version -------------------- */
+#define MICROOS_VERSION_MAJOR "1.2.0"   // MicroOS版本
 
-### **3.2 时间转换宏**
+/* -------------------- MicroOS System Frequency -------------------- */
+#define MICROOS_FREQ_HZ       1000      // 系统时钟频率（Hz）
+
+/* -------------------- Task Module Configuration -------------------- */
+#define MICROOS_TASK_SIZE     10        // 最大任务数量
+#define OS_DELAY_POOLSIZE     10        // 延时任务池大小
+
+/* -------------------- Event Module Configuration -------------------- */
+#define OS_EVENT_POOLSIZE     10        // 事件池大小
+````
+
+*用户必须配置 `MICROOS_FREQ_HZ` 以匹配定时器中断频率（例如：1000Hz 表示每 1ms 产生一次 Tick）。*
+
+### **3.1 时间转换宏**
+
+Tick/毫秒转换辅助宏（定义于 `MicroOS_com.h`），用于所有 API 中标注 `Ticks` 参数的位置：
 
 ```c
-// 节拍 → 毫秒
+// Tick 转换为毫秒
 #define OS_TICKS_MS(tick)   ((tick) * (1000 / MICROOS_FREQ_HZ))
 
-// 毫秒 → 节拍
+// 毫秒转换为 Tick
 #define OS_MS_TICKS(ms)     ((ms) * (MICROOS_FREQ_HZ / 1000))
 ```
 
-*用户必须确保 `MICROOS_FREQ_HZ` 与定时器中断频率匹配（例如1000Hz 对应1ms节拍）。*
-
 ---
 
-## **4. 数据结构**
+## **4. 公共 API**
 
-### **4.1 任务结构体**
-
-```c
-typedef struct {
-    bool IsUsed;
-    bool IsRunning;
-    bool IsSleeping;
-    char *name;                   // 任务名称
-    uint32_t SleepTicks;
-    uint32_t Period;              // 任务周期，单位毫秒
-    uint32_t LastRunTime;
-    void (*TaskFunction)(void*);
-    void* Userdata;
-} MicroOS_Task_Sub_t;
-```
-
-### **4.2 事件结构体**
-
-```c
-typedef struct MicroOS_Event_Sub_t {
-    uint8_t id;
-    char *name;                     // 事件名称
-    bool IsRunning;
-    bool IsUsed;
-    volatile uint16_t TriggerCount; // 触发次数
-    void (*EventFunction)(void *data);
-    void *Userdata;
-    struct MicroOS_Event_Sub_t *next;
-} MicroOS_Event_Sub_t;
-```
-
-### **4.3 OS 实例结构体**
-
-```c
-typedef struct {
-    MicroOS_Task_Sub_t Tasks[MICROOS_TASK_SIZE];
-    uint32_t TickCount;
-    uint32_t MaxTasks;
-    uint8_t CurrentTaskId;
-    uint8_t TaskNum;
-} MicroOS_Task_t;
-```
-
----
-
-## **5. 公共 API**
-
-### **5.1 初始化**
+### **4.1 初始化**
 
 ```c
 MicroOS_Status_t MicroOS_Init(void);
 ```
 
-初始化调度器，清空所有任务和事件条目。
+初始化调度器，并清空所有任务和事件条目。
 
 ---
 
-### **5.2 添加任务**
+### **4.2 添加任务**
 
 ```c
 MicroOS_Status_t MicroOS_AddTask(uint8_t id,
-                                 char *Taskname,
-                                 MicroOS_TaskFunction_t TaskFunction,
-                                 void *Userdata,
-                                 uint32_t Period);
+                                  char *Taskname,
+                                  MicroOS_TaskFunction_t TaskFunction,
+                                  void *Userdata,
+                                  uint32_t Ticks);
 ```
 
-* **id:** 任务 ID（范围 0 到 MICROOS\_TASK\_SIZE-1）。
-* **Taskname:** 任务名称（字符串标识符）。
-* **Period:** 执行周期，单位为毫秒。
+* **id：** 任务 ID（0 – `MICROOS_TASK_SIZE`-1）。同时作为优先级使用；ID 越低，运行优先级越高。
+* **Taskname：** 任务名称（字符串标识）。
+* **TaskFunction：** 任务函数指针。
+* **Userdata：** 传递给任务函数的用户数据指针。
+* **Ticks：** 任务执行周期，单位为 Tick（使用 `OS_MS_TICKS(ms)` 转换）。
 
 ---
 
-### **5.3 启动调度器**
+### **4.3 启动调度器**
 
 ```c
 void MicroOS_StartScheduler(void);
 ```
 
-启动合作式调度器，进入死循环开始任务调度。
+启动协作式调度器。该函数运行在无限循环中，每次循环分发事件、处理 OSdelay 回调，并执行到期任务。
 
 ---
 
-### **5.4 节拍处理函数**
+### **4.4 Tick处理函数**
 
 ```c
-MicroOS_Status_t MicroOS_TickHandler(void);
+void MicroOS_TickHandler(void);
 ```
 
-此函数应在硬件定时器中断内调用，每隔 `1/MICROOS_FREQ_HZ` 秒调用一次，用于增加节拍计数。
+必须在硬件定时器 ISR 中以 `1/MICROOS_FREQ_HZ` 秒的周期调用，用于递增 `TickCount`。
 
 ---
 
-### **5.5 Get System Tick count**
+### **4.5 获取系统 Tick 计数**
 
 ```c
 uint32_t MicroOS_GetTick(void);
 ```
 
-Get system ticks
+返回当前 Tick 计数值。
 
 ---
 
-### **5.6 任务控制**
+### **4.6 任务控制**
 
 ```c
 MicroOS_Status_t MicroOS_SuspendTask(uint8_t id);
 MicroOS_Status_t MicroOS_ResumeTask(uint8_t id);
-MicroOS_Status_t MicroOS_DeleteTask(uint8_t id);
+MicroOS_Status_t MicroOS_ResetTask(uint8_t id);
 MicroOS_Status_t MicroOS_SleepTask(uint8_t id, uint32_t Ticks);
 MicroOS_Status_t MicroOS_WakeupTask(uint8_t id);
+MicroOS_Status_t MicroOS_DeleteTask(uint8_t id);
 ```
 
-* `SuspendTask` – 暂停任务。
-* `ResumeTask` – 恢复被暂停任务。
-* `DeleteTask` – 删除任务条目。
-* `SleepTask` – 让任务进入睡眠状态指定节拍数。
-* `WakeupTask` – 提前唤醒睡眠任务。
+* `SuspendTask` —— 无限期暂停任务。
+* `ResumeTask` —— 恢复被暂停的任务。
+* `ResetTask` —— 重置任务记录的 `LastRunTime`，并清除休眠/运行状态。
+* `SleepTask` —— 让任务休眠指定数量的 **Ticks**。
+* `WakeupTask` —— 提前唤醒休眠中的任务。
+* `DeleteTask` —— 删除任务条目。
 
 ---
 
-### **5.7 延时管理**
+## **4.7 延时管理**
 
 ```c
 MicroOS_Status_t MicroOS_delay(uint32_t Ticks);
-MicroOS_Status_t MicroOS_OSdelay(uint8_t id, uint32_t Ticks);
-bool MicroOS_OSdelayDone(uint8_t id);
-void MicroOS_OSdelay_Remove(uint8_t id);
+
+MicroOS_Status_t MicroOS_OSdelay(uint8_t id,
+                                  MicroOS_OSdelayFunction_t OSdelayFunction,
+                                  const void *Userdata,
+                                  uint32_t Ticks);
 ```
 
-* `MicroOS_delay()` - 阻塞延时。
-* `MicroOS_OSdelay()` – 启动延时计时。
-* `MicroOS_OSdelayDone()` – 检测延时是否完成。
-* `MicroOS_OSdelay_Remove()` – 释放延时条目。
+* `MicroOS_delay()` —— **阻塞式**延时；等待指定 Tick 数过去。该函数会阻塞整个调度器，因此应谨慎使用。
+* `MicroOS_OSdelay()` —— **非阻塞式**基于回调的延时。注册（如果 `id` 已存在，则重新启动）一个持续 `Ticks` 的延时。当延时结束后，调度器会在 `MicroOS_StartScheduler()` 主循环中自动调用 `OSdelayFunction(Userdata)`，并自动释放内存池条目——无需手动检查完成状态，也无需手动删除。
 
 ---
 
-### **5.8 事件管理**
-
-#### **API**
+## **4.8 事件管理**
 
 ```c
 MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id,
-                                       char *name,
-                                       MicroOS_EventFunction_t EventFunction,
-                                       void *Userdata);
+                                        char *name,
+                                        MicroOS_EventFunction_t EventFunction);
 
 void MicroOS_DeleteEvent(uint8_t id);
 
-MicroOS_Status_t MicroOS_TriggerEvent(uint8_t id);
+MicroOS_Status_t MicroOS_TriggerEvent(uint8_t id, const void *Userdata);
 
 MicroOS_Status_t MicroOS_SuspendEvent(uint8_t id);
 
 MicroOS_Status_t MicroOS_ResumeEvent(uint8_t id);
 ```
 
-* `RegisterEvent` – 添加或更新事件回调（带名称）。
-* `DeleteEvent` – 从活动事件列表中移除事件。
-* `TriggerEvent` – 标记事件为触发状态，调度循环中执行。
-* `SuspendEvent` – 临时禁止事件执行。
-* `ResumeEvent` – 重新激活已暂停事件。
+* `RegisterEvent` —— 添加或更新一个带名称的事件回调。
+* `DeleteEvent` —— 从活动列表中删除事件。
+* `TriggerEvent` —— 标记事件已触发，并附带本次触发的 `Userdata`；该事件会在调度器循环中执行，并将该数据传递给回调函数。
+* `SuspendEvent` —— 临时禁用事件执行。
+* `ResumeEvent` —— 重新启用被暂停的事件。
 
-#### **简单示例**
+### **简单示例**
 
 ```c
 void MyEventHandler(void *data) {
-    // 事件处理函数
-    printf("事件被触发！\n");
+    // 处理事件
+    printf("Event triggered!\n");
 }
 
 void MyTask(void *param) {
-    MicroOS_TriggerEvent(0);  // 触发事件ID为0的事件
+    MicroOS_TriggerEvent(0, NULL);  // 触发事件 ID 0
 }
 
 int main(void) {
     MicroOS_Init();
-    MicroOS_RegisterEvent(0, "MyEvent", MyEventHandler, NULL);
-    MicroOS_AddTask(0, "MyTask", MyTask, NULL, 100);
+    MicroOS_RegisterEvent(0, "MyEvent", MyEventHandler);
+    MicroOS_AddTask(0, "MyTask", MyTask, NULL, OS_MS_TICKS(100));
     MicroOS_StartScheduler();
 }
 ```
 
 ---
 
-## **6. 使用示例**
+## **5. 使用示例**
 
-### **6.1 初始化**
+### **5.1 初始化**
 
 ```c
 void LED_Task(void *param) {
-    // 切换LED状态
+    // 翻转LED
 }
 
 void UART_Task(void *param) {
@@ -258,83 +223,70 @@ void UART_Task(void *param) {
 int main(void) {
     MicroOS_Init();
 
-    MicroOS_AddTask(0, "LED_Task", LED_Task, NULL, 100);
-    MicroOS_AddTask(1, "UART_Task", UART_Task, NULL, 10);
+    MicroOS_AddTask(0, "LED_Task", LED_Task, NULL, OS_MS_TICKS(100));
+    MicroOS_AddTask(1, "UART_Task", UART_Task, NULL, OS_MS_TICKS(10));
 
     MicroOS_StartScheduler();
 }
 ```
 
-### **6.2 节拍中断服务程序**
+---
+
+### **5.2 Tick中断**
 
 ```c
 void SysTick_Handler(void) {
-    MicroOS_TickHandler();  // 假设MICROOS_FREQ_HZ=1000，1ms调用一次
+    MicroOS_TickHandler();  // 当 MICROOS_FREQ_HZ = 1000 时，每1ms调用一次
 }
 ```
 
-### **6.3 任务睡眠示例**
+---
+
+### **5.3 休眠示例**
 
 ```c
 void Sensor_Task(void *param) {
     static bool firstRun = true;
-    if(firstRun) {
-        MicroOS_SleepTask(0, 500);  // 睡眠500ms
+
+    if (firstRun) {
+        MicroOS_SleepTask(0, OS_MS_TICKS(500));  // 休眠500ms
         firstRun = false;
         return;
     }
 
-    // 睡眠结束后的处理
+    // 休眠结束后的传感器处理
 }
 ```
 
-### **6.4 延时示例**
+---
+
+### **5.4 延时示例**
 
 ```c
+void Comm_DelayHandler(void *userdata) {
+    // 延时结束后自动运行，无需轮询
+    // 在这里执行延时后的操作
+}
+
 void Comm_Task(void *param) {
-    static bool waiting = false;
+    static bool started = false;
 
-    if(!waiting) {
-        MicroOS_OSdelay(1, 200);  // 200ms延时
-        waiting = true;
-    }
-
-    if(MicroOS_OSdelayDone(1)) {
-        // 延时结束，执行工作
-        MicroOS_OSdelay_Remove(1);
-        waiting = false;
+    if (!started) {
+        MicroOS_OSdelay(1, Comm_DelayHandler, NULL, OS_MS_TICKS(200)); // 200ms延时
+        started = true;
     }
 }
 ```
 
 ---
 
-## **7. 功能配置**
+## **6. 限制**
 
-### **7.1 任务调度器**(已废弃)
-* **默认禁用**（`MICROOS_TASKENABLE = 0`）
-* 设置 `MICROOS_TASKENABLE = 1` 启用任务调度
-* 禁用时，所有任务相关 API 不会被编译
+* 仅支持协作式调度（无抢占）。
+* 所有任务共享同一个任务栈。
+* 任务优先级通过 ID 和周期隐式决定。
+* OSdelay 回调会在 `MicroOS_StartScheduler()` 主循环中执行；如果某个任务或事件处理函数执行时间过长，会导致同一次循环中的其他回调延迟执行。
+* 事件池大小固定，在编译时通过 `OS_EVENT_POOLSIZE` 定义。
+* 任务表和延时池大小固定，在编译时通过 `MICROOS_TASK_SIZE` 和 `OS_DELAY_POOLSIZE` 定义。
 
-### **7.2 事件系统**(已废弃)
-* **默认启用**（`MICROOS_EVENTENABLE = 1`）
-* 设置 `MICROOS_EVENTENABLE = 0` 禁用事件系统
-* 禁用时，所有事件相关 API 不会被编译
-
-### **7.3 延时系统**(已废弃)
-* **默认禁用**（`OS_DELAY_POOLSIZE = 0`）
-* 设置 `OS_DELAY_POOLSIZE > 0` 启用 OSdelay 功能
-* 禁用时，所有延时相关 API 不会被编译
-
----
-
-## **8. 限制**
-
-* 仅支持合作式调度（无抢占）。
-* 所有任务共享单一调用栈。
-* 任务优先级通过 ID 和周期隐式体现。
-* OSdelay 需轮询检测（启用时）。
-* 事件池大小在编译时固定（由 `OS_EVENT_POOLSIZE` 定义）。
-* 任务和延时系统是可选的，可在编译时禁用。
-
----
+```

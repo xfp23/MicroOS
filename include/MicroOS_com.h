@@ -3,7 +3,7 @@
 
 /**
  * @file MicroOS_types.h
- * @author (https://xfp23.github.io/)
+ * @author (https://xfp23.github.io)
  * @brief Define types
  * @version 0.1
  * @date 2025-08-31

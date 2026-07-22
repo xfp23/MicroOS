@@ -3,7 +3,7 @@
 
 /**
  * @file MicroOS_types.h
- * @author (https://xfp23.github.io/)
+ * @author (https://xfp23.github.io)
  * @brief Define types
  * @version 0.1
  * @date 2025-08-31
@@ -61,8 +61,8 @@ typedef struct
     bool IsSleeping;              // Indicates if the task is currently sleeping
     char *name;                   // Task name
     uint32_t SleepTicks;          // Number of ticks the task is sleeping
-    uint32_t Period;              // Task period in milliseconds
-    uint32_t LastRunTime;         // Last run time in ticks
+    uint32_t Tick;              // Task period in milliseconds
+    uint32_t LastRunTime;         // Last run time in ticks 
     void (*TaskFunction)(void *); // Pointer to the task function
     void *Userdata;               // Pointer to user data
 } MicroOS_Task_Sub_t;

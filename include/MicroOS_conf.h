@@ -3,9 +3,9 @@
 
 /**
  * @file microos_conf.h
- * @author xfp23
+ * @author (https://xfp23.github.io)
  * @brief MicroOS configuration header file
- * @version 1.0.0
+ * @version 1.2.0
  * @date 2025-08-31
  *
  * Description:

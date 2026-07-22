@@ -64,7 +64,7 @@ void MicroOS_StartScheduler(void)
             if (t->IsSleeping)
                 continue;
 
-            if ((uint32_t)(currentTime - t->LastRunTime) >= t->Period)
+            if ((uint32_t)(currentTime - t->LastRunTime) >= t->Tick)
             {
                 MicroOS_Task_Handle->CurrentTaskId = i;
                 t->TaskFunction(t->Userdata);
@@ -74,12 +74,11 @@ void MicroOS_StartScheduler(void)
     }
 }
 
-MicroOS_Status_t MicroOS_TickHandler(void)
+void MicroOS_TickHandler(void)
 {
 
     MicroOS_Task_Handle->TickCount++;
     MicroOS_OSdelay_Tick();
-    return MICROOS_OK;
 }
 
 uint32_t MicroOS_GetTick()
@@ -87,7 +86,21 @@ uint32_t MicroOS_GetTick()
     return MicroOS_Task_Handle->TickCount;
 }
 
-MicroOS_Status_t MicroOS_AddTask(uint8_t id, char *Taskname, MicroOS_TaskFunction_t TaskFunction, void *Userdata, uint32_t Period)
+MicroOS_Status_t MicroOS_delay(uint32_t Ticks)
+{
+
+    if (Ticks == 0)
+    {
+        return MICROOS_INVALID_PARAM;
+    }
+    uint32_t startTick = MicroOS_Task_Handle->TickCount;
+    while ((MicroOS_Task_Handle->TickCount - startTick) < Ticks)
+    {
+    }
+    return MICROOS_OK;
+}
+
+MicroOS_Status_t MicroOS_AddTask(uint8_t id, char *Taskname, MicroOS_TaskFunction_t TaskFunction, void *Userdata, uint32_t Tick)
 {
     MICROOS_CHECK_ID(id);
     MICROOS_CHECK_PTR(TaskFunction);
@@ -102,7 +115,7 @@ MicroOS_Status_t MicroOS_AddTask(uint8_t id, char *Taskname, MicroOS_TaskFunctio
     MicroOS_Task_Handle->Tasks[id].name = Taskname;
     MicroOS_Task_Handle->Tasks[id].TaskFunction = TaskFunction;
     MicroOS_Task_Handle->Tasks[id].Userdata = Userdata;
-    MicroOS_Task_Handle->Tasks[id].Period = Period;
+    MicroOS_Task_Handle->Tasks[id].Tick = Tick;
     MicroOS_Task_Handle->Tasks[id].LastRunTime = 0;
     MicroOS_Task_Handle->Tasks[id].IsRunning = true;
     MicroOS_Task_Handle->Tasks[id].IsUsed = true;
@@ -218,6 +231,8 @@ static void MicroOS_OSdelay_Init(void)
 // 添加/更新任务
 MicroOS_Status_t MicroOS_OSdelay(uint8_t id, MicroOS_OSdelayFunction_t OSdelayFunction, const void *Userdata, uint32_t Ticks)
 {
+    MICROOS_CHECK_PTR(OSdelayFunction);
+
     MicroOS_OSdelay_Sub_t *p = OSdelay.active_delay;
 
     // 检查是否已有该 ID
@@ -252,19 +267,6 @@ MicroOS_Status_t MicroOS_OSdelay(uint8_t id, MicroOS_OSdelayFunction_t OSdelayFu
     OSdelay.active_delay = node;
 
     return MICROOS_OK;
-}
-
-// 查询状态
-bool MicroOS_OSdelayDone(uint8_t id)
-{
-    MicroOS_OSdelay_Sub_t *p = OSdelay.active_delay;
-    while (p)
-    {
-        if (p->id == id)
-            return p->IsTimeout;
-        p = p->next;
-    }
-    return false;
 }
 
 // Tick 处理

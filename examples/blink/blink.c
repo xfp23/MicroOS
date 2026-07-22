@@ -13,21 +13,20 @@ void Task_UART(void *param) {
     printf("UART handling...\n");
 }
 
-// 模拟使用 OSdelay 的任务
+// OSdelay 到期后自动被调度器调用的回调函数，不再需要手动轮询
+void Delay_Callback(void *userdata) {
+    printf("Delay finished, doing work\n");
+}
+
+// 模拟使用 OSdelay 的任务：只需在需要时启动一次延时，
+// 到期后 Delay_Callback 会被调度器自动调用，节点也会自动释放
 void Task_DelayExample(void *param) {
-    static bool waiting = false;
-
-    if (!waiting) {
-        // 设置延时 500MS
-        MicroOS_OSdelay(0, 500);
-        waiting = true;
+    static bool started = false;
+    if (!started) {
+        // 设置延时 500ms
+        MicroOS_OSdelay(0, Delay_Callback, NULL, OS_MS_TICKS(500));
+        started = true;
         printf("Delay started\n");
-    }
-
-    if (MicroOS_OSdelayDone(0)) {
-        MicroOS_OSdelay_Remove(0);
-        waiting = false;
-        printf("Delay finished, doing work\n");
     }
 }
 
@@ -38,10 +37,10 @@ int main(void) {
         return -1;
     }
 
-    // 添加任务：ID 必须唯一且小于 MICROOS_TASK_SIZE
-    MicroOS_AddTask(0, "LED_Task", Task_LED, NULL, 1000);        // 1000 MS 周期
-    MicroOS_AddTask(1, "UART_Task", Task_UART, NULL, 2000);       // 2000 MS 周期
-    MicroOS_AddTask(2, "Delay_Task", Task_DelayExample, NULL, 100); // 100 MS 周期
+    // 添加任务：ID 必须唯一且小于 MICROOS_TASK_SIZE，周期用 OS_MS_TICKS(ms) 换算成 Ticks
+    MicroOS_AddTask(0, "LED_Task", Task_LED, NULL, OS_MS_TICKS(1000));          // 1000 ms 周期
+    MicroOS_AddTask(1, "UART_Task", Task_UART, NULL, OS_MS_TICKS(2000));        // 2000 ms 周期
+    MicroOS_AddTask(2, "Delay_Task", Task_DelayExample, NULL, OS_MS_TICKS(100)); // 100 ms 周期
 
     // 启动调度器（一般不会返回）
     MicroOS_StartScheduler();

@@ -3,7 +3,7 @@
 
 /**
  * @file MicroOS.h
- * @author (https://xfp23.github.io/)
+ * @author (https://xfp23.github.io)
  * @brief Lightweight cooperative scheduler and event manager for embedded systems.
  *
  * @note
@@ -88,10 +88,9 @@ extern MicroOS_Status_t MicroOS_delay(uint32_t Ticks);
 
 /**
  * @brief Set a delay for a task (OSdelay)
- * @details To use OSdelay accurately, you must create a 1ms periodic task and call MicroOS_OSdelayDone within it.
- *          After the delay is no longer needed, you must call MicroOS_OSdelay_Remove to release the delay task.
- *          See project usage examples for details.
  * @param id Task ID
+ * @param OSdelayFunction  Delayed callback function
+ * @param Userdata Data pointer provided by the user
  * @param Ticks Delay Ticks num  OS_MS_TICKS(ms)
  * @return MicroOS_Status_t Status code
  */
@@ -106,7 +105,7 @@ extern MicroOS_Status_t MicroOS_OSdelay(uint8_t id,MicroOS_OSdelayFunction_t OSd
  * @param Period Task period in milliseconds
  * @return MicroOS_Status_t Status code
  */
-extern MicroOS_Status_t MicroOS_AddTask(uint8_t id, char *Taskname,MicroOS_TaskFunction_t TaskFunction, void *Userdata, uint32_t Period);
+extern MicroOS_Status_t MicroOS_AddTask(uint8_t id, char *Taskname,MicroOS_TaskFunction_t TaskFunction, void *Userdata, uint32_t Ticks);
 
 /**
  * @brief Start the MicroOS scheduler and begin running tasks
@@ -116,9 +115,8 @@ extern void MicroOS_StartScheduler(void);
 /**
  * @brief Tick handler, usually called in the system clock interrupt
  * @note This function increases the TickCount counter, which is used for task scheduling. Typically called in a 1ms timer interrupt.
- * @return MicroOS_Status_t Status code
  */
-extern MicroOS_Status_t MicroOS_TickHandler(void);
+extern void MicroOS_TickHandler(void);
 
 /**
  * @brief Get MicroOS Tick count
