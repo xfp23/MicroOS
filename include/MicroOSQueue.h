@@ -25,7 +25,7 @@ MicroOS_Status_t MicroOSQueue_Init(MicroOSQueue_Obj_t *obj);
  * @param size data len
  * @return MicroOS_Status_t 
  */
-MicroOS_Status_t MicroOSQueue_Push(MicroOSQueue_Obj_t *obj,const void *data,uint16_t size);
+MicroOS_Status_t MicroOSQueue_Push(MicroOSQueue_Obj_t *obj,const void *data,size_t size);
 
 /**
  * @brief Pop queue
@@ -35,7 +35,7 @@ MicroOS_Status_t MicroOSQueue_Push(MicroOSQueue_Obj_t *obj,const void *data,uint
  * @param size Copy len buffer
  * @return MicroOS_Status_t 
  */
-MicroOS_Status_t MicroOSQueue_Pop(MicroOSQueue_Obj_t *obj,void *data,uint16_t *size);
+MicroOS_Status_t MicroOSQueue_Pop(MicroOSQueue_Obj_t *obj,void *data,size_t *size);
 
 /**
  * @brief the queue object is empty

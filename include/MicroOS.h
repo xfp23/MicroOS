@@ -45,7 +45,7 @@ extern MicroOS_Status_t MicroOS_Init(void);
  * @param EventFunction Callback function to be executed when the event is triggered.
  * @return MicroOS_Status_t Returns MICROOS_OK on success or an error code if the event pool is full.
  */
-extern MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunction_t EventFunction);
+extern MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunction_t EventFunction,void *Userdata);
 
 /**
  * @brief Deletes an event from the active event list.
@@ -61,7 +61,7 @@ extern void MicroOS_DeleteEvent(uint8_t id);
  * @param Userdata      Pointer to user-defined data passed to the callback function.
  * @return MicroOS_Status_t Returns MICROOS_OK if the event was found and triggered, otherwise MICROOS_ERROR.
  */
-extern MicroOS_Status_t MicroOS_TriggerEvent(uint8_t id, const void *Userdata);
+extern MicroOS_Status_t MicroOS_TriggerEvent(uint8_t id);
 
 /**
  * @brief Suspends an event, preventing it from being executed even if triggered.
@@ -172,6 +172,50 @@ extern MicroOS_Status_t MicroOS_ResetTask(uint8_t id);
  * @return MicroOS_Status_t Status code
  */
 extern MicroOS_Status_t MicroOS_DeleteTask(uint8_t id);
+
+/**
+ * @brief Registers a new Message event or updates an existing one.
+ * 
+ * @param id Message Event id
+ * @param name Message Event ASCII name
+ * @param function 
+ * @return MicroOS_Status_t 
+ */
+extern MicroOS_Status_t MicroOS_RegisterMessageEvent(uint8_t id, const char *name, MicroOS_MessageEventFunction_t function);
+
+/**
+ * @brief Delete the task with the specified ID
+ * 
+ * @param id Message Event id
+ * @return MicroOS_Status_t 
+ */
+extern MicroOS_Status_t MicroOS_DeleteMessageEvent(uint8_t id);
+
+/**
+ * @brief Triggers an Message Event event, marking it to be executed in the scheduler loop.
+ * 
+ * @param id Message Event id
+ * @param data Queue data
+ * @param data_len data len
+ * @return MicroOS_Status_t 
+ */
+extern MicroOS_Status_t MicroOS_TriggerMessageEvent(uint8_t id, const void *data, size_t data_len);
+
+/**
+ * @brief Suspends an Message event, preventing it from being executed even if triggered.
+ * 
+ * @param id Message Event id
+ * @return MicroOS_Status_t 
+ */
+extern MicroOS_Status_t MicroOS_SuspendMessageEvent(uint8_t id);
+
+/**
+ * @brief Resumes a previously suspended  Message event, allowing it to execute when triggered.
+ * 
+ * @param id Message Event id
+ * @return MicroOS_Status_t 
+ */
+extern MicroOS_Status_t MicroOS_ResumeMessageEvent(uint8_t id);
 
 #ifdef __cplusplus
 }

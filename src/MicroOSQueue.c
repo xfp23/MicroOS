@@ -1,5 +1,6 @@
 #include "MicroOSQueue.h"
-#include <string.h>
+#include "MicroOS_com.h"
+#include "string.h"
 
 
 MicroOS_Status_t MicroOSQueue_Init(MicroOSQueue_Obj_t *obj)
@@ -34,7 +35,7 @@ bool MicroOSQueue_IsFull(MicroOSQueue_Obj_t *obj)
 
 
 
-MicroOS_Status_t MicroOSQueue_Push(MicroOSQueue_Obj_t *obj,const void *data,uint16_t size)
+MicroOS_Status_t MicroOSQueue_Push(MicroOSQueue_Obj_t *obj,const void *data,size_t size)
 {
 
     MICROOS_CHECK_PTR(obj);
@@ -70,7 +71,7 @@ MicroOS_Status_t MicroOSQueue_Push(MicroOSQueue_Obj_t *obj,const void *data,uint
 
 
 
-MicroOS_Status_t MicroOSQueue_Pop(MicroOSQueue_Obj_t *obj,void *data,uint16_t *size)
+MicroOS_Status_t MicroOSQueue_Pop(MicroOSQueue_Obj_t *obj,void *data,size_t *size)
 {
 
     MICROOS_CHECK_PTR(obj);

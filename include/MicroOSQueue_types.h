@@ -31,7 +31,7 @@ extern "C"
 
 typedef struct 
 {
-    uint16_t len;
+    size_t len;
     uint8_t data[MICROOS_QUEUE_MSG_SIZE];
 } MicroOSQueue_Message_t;
 
@@ -40,8 +40,8 @@ typedef struct
 {
     MicroOSQueue_Message_t buffer[MICROOS_QUEUE_DEPTH];
 
-    uint32_t tail;
-    uint32_t head;
+    volatile uint32_t tail;
+    volatile uint32_t head;
 
 } MicroOSQueue_Obj_t;
 

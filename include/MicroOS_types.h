@@ -31,13 +31,20 @@ typedef void (*MicroOS_TaskFunction_t)(void *Userdata);
  * @brief Event function prototype
  * @param Userdata Pointer to user data
  */
-typedef void (*MicroOS_EventFunction_t)(MicroOSQueue_Message_t Userdata);
+typedef void (*MicroOS_EventFunction_t)(void *Userdata);
 
 /**
  * @brief OSdelay function prototype
  * @param Userdata Pointer to user data
  */
 typedef void (*MicroOS_OSdelayFunction_t)(void *Userdata);
+
+/**
+ * @brief EventQueue function prototype
+ * @param Userdata Queue message
+ * 
+ */
+typedef void (*MicroOS_MessageEventFunction_t)(const MicroOSQueue_Message_t* QueueMsg);
 
 /**
  * @brief MicroOS status codes
@@ -116,9 +123,9 @@ typedef struct MicroOS_Event_Sub_t
     bool IsRunning;                 // Whether to run
     bool IsUsed;                    // Whether to used
     volatile uint16_t TriggerCount; // Number of triggers
-    void (*EventFunction)(MicroOSQueue_Message_t data);
-    // void *Userdata;
-    MicroOSQueue_Message_t msg;                         // queue message
+    void (*EventFunction)(void* data);
+    void *Userdata;
+    // MicroOSQueue_Message_t msg;                         // queue message
     struct MicroOS_Event_Sub_t *next; // next node
 } MicroOS_Event_Sub_t;
 
@@ -129,11 +136,30 @@ typedef struct
     MicroOS_Event_Sub_t *active_event;                 // active events
     uint8_t CurrentEventId;                            // Current event ID
     uint8_t EventNum;                                  // number of surviving events
-    MicroOSQueue_Obj_t Event_queue;                     // Event queue
+    // MicroOSQueue_Obj_t Event_queue;                     // Event queue
 } MicroOS_Event_t;
+
+typedef struct {
+    // (O1)查找,数组索引就是ID，因为消息需要memecpy就已经很重了，如果再加个O(n),会浪费cpu
+    bool IsUsed;                  // Indicates if the task is currently in use
+    bool IsRunning;               // Indicates if the task is currently running
+    char *name;                   // Task name
+    // volatile uint16_t TriggerCount; // Number of triggers
+    void (*MessageEventFunction)(const MicroOSQueue_Message_t *);
+    MicroOSQueue_Message_t Userdata;               // Pointer to user data
+    MicroOSQueue_Obj_t queue;
+}MicroOS_MessageEvent_Sub_t;
+
+typedef struct
+{
+    MicroOS_MessageEvent_Sub_t Event[MICROOS_MESSAGEEVENT_SIZE]; /**< Array of scheduled Message */
+    uint32_t MaxMessage;                           /**< Maximum number of Message supported */
+    uint8_t CurrentMessageEventId;               /**< Current running Message ID */
+    uint8_t MessageNum;                             /**< Number of Message added */
+} MicroOS_MessageEvent_t;
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif 
