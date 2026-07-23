@@ -2,15 +2,15 @@
 #define MICROOS_CONF_H
 
 /**
- * @file microos_conf.h
- * @author (https://xfp23.github.io)
- * @brief MicroOS configuration header file
+ * @file MicroOS_conf.h
+ * @author https://xfp23.github.io
+ * @brief MicroOS configuration file
  * @version 1.2.0
  * @date 2025-08-31
  *
- * Description:
- * - Configure MicroOS version, frequency, task, and event features
- * - Enable or disable task/event modules via macros
+ * @details
+ * Configure MicroOS compile-time options.
+ * All parameters are statically configured before compilation.
  */
 
 #ifdef __cplusplus
@@ -18,29 +18,65 @@ extern "C"
 {
 #endif
 
-/* -------------------- MicroOS Version -------------------- */
-#define MICROOS_VERSION_MAJOR "1.2.0" ///< MicroOS version
+/*======================================================================
+ * MicroOS Version
+ *====================================================================*/
 
-/* -------------------- MicroOS System Frequency -------------------- */
-#define MICROOS_FREQ_HZ 1000U ///< System clock frequency (Hz)
+/** MicroOS version */
+#define MICROOS_VERSION_MAJOR          "1.2.0"
 
-/* -------------------- Task Module Configuration -------------------- */
-#define MICROOS_TASK_SIZE 10U ///< Maximum number of tasks
-#define OS_DELAY_POOLSIZE 10U ///< Delay task pool size
 
-/* -------------------- Event Module Configuration -------------------- */
-#define OS_EVENT_POOLSIZE 10U ///< Event pool size
+/*======================================================================
+ * System Configuration
+ *====================================================================*/
 
-/* -------------------- Queue Module Configuration -------------------- */
-#define MICROOS_QUEUE_DEPTH 256U
-#define MICROOS_QUEUE_MSG_SIZE 32U // Unit : byte
+/** System tick frequency (Hz) */
+#define MICROOS_FREQ_HZ                1000U
 
-#define MICROOS_MESSAGEEVENT_SIZE 10U
 
-#define MICROOS_MESSAGEEVENT_ENABLE 1U
+/*======================================================================
+ * Task Module Configuration
+ *====================================================================*/
+
+/** Maximum number of scheduler tasks */
+#define MICROOS_TASK_SIZE              10U
+
+/** OSdelay object pool size */
+#define OS_DELAY_POOLSIZE              10U
+
+
+/*======================================================================
+ * Event Module Configuration
+ *====================================================================*/
+
+/** Maximum number of registered events */
+#define OS_EVENT_POOLSIZE              10U
+
+
+/*======================================================================
+ * Message Event Module Configuration
+ *====================================================================*/
+
+/** Enable Message Event module (0: Disable, 1: Enable) */
+#define MICROOS_MESSAGEEVENT_ENABLE    1U
+
+/** Maximum number of Message Events */
+#define MICROOS_MESSAGEEVENT_SIZE      10U
+
+
+/*======================================================================
+ * Queue Module Configuration
+ *====================================================================*/
+
+/** Queue capacity (number of messages) */
+#define MICROOS_QUEUE_DEPTH            256U
+
+/** Maximum payload size of a single message (bytes) */
+#define MICROOS_QUEUE_MSG_SIZE         32U
+
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // MICROOS_CONF_H
+#endif /* MICROOS_CONF_H */

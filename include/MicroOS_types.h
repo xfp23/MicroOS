@@ -44,7 +44,7 @@ typedef void (*MicroOS_OSdelayFunction_t)(void *Userdata);
  * @param Userdata Queue message
  * 
  */
-typedef void (*MicroOS_MessageEventFunction_t)(const MicroOSQueue_Message_t* QueueMsg);
+typedef void (*MicroOSQueue_EventFunction_t)(const MicroOSQueue_Message_t* QueueMsg);
 
 /**
  * @brief MicroOS status codes
@@ -125,7 +125,6 @@ typedef struct MicroOS_Event_Sub_t
     volatile uint16_t TriggerCount; // Number of triggers
     void (*EventFunction)(void* data);
     void *Userdata;
-    // MicroOSQueue_Message_t msg;                         // queue message
     struct MicroOS_Event_Sub_t *next; // next node
 } MicroOS_Event_Sub_t;
 
@@ -144,7 +143,6 @@ typedef struct {
     bool IsUsed;                  // Indicates if the task is currently in use
     bool IsRunning;               // Indicates if the task is currently running
     char *name;                   // Task name
-    // volatile uint16_t TriggerCount; // Number of triggers
     void (*MessageEventFunction)(const MicroOSQueue_Message_t *);
     MicroOSQueue_Message_t Userdata;               // Pointer to user data
     MicroOSQueue_Obj_t queue;

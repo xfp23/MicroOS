@@ -181,7 +181,7 @@ extern MicroOS_Status_t MicroOS_DeleteTask(uint8_t id);
  * @param function 
  * @return MicroOS_Status_t 
  */
-extern MicroOS_Status_t MicroOS_RegisterMessageEvent(uint8_t id, const char *name, MicroOS_MessageEventFunction_t function);
+extern MicroOS_Status_t MicroOS_RegisterMessageEvent(uint8_t id, const char *name, MicroOSQueue_EventFunction_t function);
 
 /**
  * @brief Delete the task with the specified ID

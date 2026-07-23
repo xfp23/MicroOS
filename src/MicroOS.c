@@ -22,8 +22,10 @@ static void MicroOS_OSdelay_Remove(uint8_t id);
 
 static void MicroOS_OSdelay_StartScheduler(void);
 
-static MicroOS_MessageEvent_t OSMessageEvent = {0};
 #if MICROOS_MESSAGEEVENT_ENABLE
+
+static MicroOS_MessageEvent_t OSMessageEvent = {0};
+
 static void MicroOS_MessageEvent_Init(void);
 
 static void MicroOS_MessageEventDispatch(void);
@@ -37,11 +39,10 @@ MicroOS_Status_t MicroOS_Init()
     MicroOS_Task_Handle->TickCount = 0;
     MicroOS_Task_Handle->CurrentTaskId = 0;
     MicroOS_OSdelay_Init();
-
-#if MICROOS_MESSAGEEVENT_ENABLE
     MicroOS_OSEvent_Init();
-#endif
+#if MICROOS_MESSAGEEVENT_ENABLE
     MicroOS_MessageEvent_Init();
+#endif
     return MICROOS_OK;
 }
 
@@ -51,15 +52,14 @@ void MicroOS_StartScheduler(void)
     while (1)
     {
 
-        MicroOS_DispatchAllEvents(); // 遍历事件槽
+        MicroOS_DispatchAllEvents();
 
-        MicroOS_OSdelay_StartScheduler(); // OSdelay自动处理
+        MicroOS_OSdelay_StartScheduler();
 
 #if MICROOS_MESSAGEEVENT_ENABLE
         MicroOS_MessageEventDispatch();
 #endif
 
-        // 遍历所有任务
         for (uint8_t i = 0; i < MICROOS_TASK_SIZE; i++)
         {
             volatile MicroOS_Task_Sub_t *t = &MicroOS_Task_Handle->Tasks[i];
@@ -358,7 +358,7 @@ static void MicroOS_OSEvent_Init(void)
     // MicroOSQueue_Init(&OSEvent.Event_queue);
 }
 
-MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunction_t EventFunction,const void *Userdata)
+MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunction_t EventFunction, const void *Userdata)
 {
     MICROOS_CHECK_PTR(EventFunction);
     MicroOS_Event_Sub_t *p = OSEvent.active_event;
@@ -369,7 +369,7 @@ MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunc
             p->name = name;
             p->EventFunction = EventFunction;
             p->IsRunning = true;
-            p->Userdata = Userdata;
+            p->Userdata = (void *)Userdata;
             // memset(&p->msg,0,sizeof(MicroOSQueue_Message_t));
             p->TriggerCount = 0;
             p->IsUsed = true;
@@ -425,20 +425,13 @@ void MicroOS_DeleteEvent(uint8_t id)
     }
 }
 
-MicroOS_Status_t MicroOS_TriggerEvent(uint8_t id /*, size_t data_len */)
+MicroOS_Status_t MicroOS_TriggerEvent(uint8_t id)
 {
     MicroOS_Event_Sub_t *p = OSEvent.active_event;
     while (p)
     {
         if (p->id == id && p->IsUsed && p->IsRunning)
         {
-            // p->Userdata = (void *)data;
-            // if(MicroOSQueue_IsFull(&OSEvent.Event_queue))
-            // {
-            //     return MICROOS_QUEUE_FULL;
-            // }
-
-            // MicroOSQueue_Push(&OSEvent.Event_queue,data,data_len);
             p->TriggerCount++;
             return MICROOS_OK;
         }
@@ -485,7 +478,6 @@ static void MicroOS_DispatchAllEvents(void)
     {
         if (p->IsUsed && p->IsRunning && p->TriggerCount > 0)
         {
-            // MicroOSQueue_Pop(&OSEvent.Event_queue,p->msg.data,&p->msg.len);
             OSEvent.CurrentEventId = p->id;
             p->EventFunction(p->Userdata);
             p->TriggerCount--;
@@ -502,7 +494,7 @@ static void MicroOS_MessageEvent_Init()
     OSMessageEvent.MessageNum = 0;
 }
 
-MicroOS_Status_t MicroOS_RegisterMessageEvent(uint8_t id, const char *name, MicroOS_MessageEventFunction_t function)
+MicroOS_Status_t MicroOS_RegisterMessageEvent(uint8_t id, const char *name, MicroOSQueue_EventFunction_t function)
 {
     if (id >= MICROOS_MESSAGEEVENT_SIZE)
     {
@@ -523,7 +515,7 @@ MicroOS_Status_t MicroOS_RegisterMessageEvent(uint8_t id, const char *name, Micr
 
     OSMessageEvent.MessageNum++;
     OSMessageEvent.Event[id].MessageEventFunction = function;
-    OSMessageEvent.Event[id].name = name;
+    OSMessageEvent.Event[id].name = (char *)name;
     OSMessageEvent.Event[id].IsUsed = true;
     OSMessageEvent.Event[id].IsRunning = true;
     // OSMessageEvent.Event[id].TriggerCount = 0;
@@ -543,10 +535,9 @@ MicroOS_Status_t MicroOS_DeleteMessageEvent(uint8_t id)
     OSMessageEvent.Event[id].IsUsed = false;
     OSMessageEvent.Event[id].IsRunning = false;
     OSMessageEvent.Event[id].name = NULL;
-    meset((void*)&OSMessageEvent.Event[id].Userdata,0,sizeof(MicroOSQueue_Message_t));
+    memset((void *)&OSMessageEvent.Event[id].Userdata, 0, sizeof(MicroOSQueue_Message_t));
 
     return MICROOS_OK;
-
 }
 
 MicroOS_Status_t MicroOS_TriggerMessageEvent(uint8_t id, const void *data, size_t data_len)
@@ -565,8 +556,6 @@ MicroOS_Status_t MicroOS_TriggerMessageEvent(uint8_t id, const void *data, size_
         {
             return ret;
         }
-
-        // OSMessageEvent.Event[id].TriggerCount++;
     }
 
     return MICROOS_OK;
