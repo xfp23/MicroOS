@@ -43,6 +43,7 @@ extern MicroOS_Status_t MicroOS_Init(void);
  * @param id            Unique event identifier.
  * @param name          Event name
  * @param EventFunction Callback function to be executed when the event is triggered.
+ * @param Userdata User data pointer
  * @return MicroOS_Status_t Returns MICROOS_OK on success or an error code if the event pool is full.
  */
 extern MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunction_t EventFunction, const void *Userdata);

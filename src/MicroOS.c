@@ -535,6 +535,7 @@ MicroOS_Status_t MicroOS_DeleteMessageEvent(uint8_t id)
     OSMessageEvent.Event[id].IsRunning = false;
     OSMessageEvent.Event[id].name = NULL;
     memset((void *)&OSMessageEvent.Event[id].Userdata, 0, sizeof(MicroOSQueue_Message_t));
+    MicroOSQueue_Reset(&OSMessageEvent.Event[id].queue);
 
     return MICROOS_OK;
 }
