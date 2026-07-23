@@ -387,8 +387,7 @@ MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunc
 
     node->id = id;
     node->EventFunction = EventFunction;
-    // node->Userdata = NULL;
-    // memset(&node->msg,0,sizeof(MicroOSQueue_Message_t));
+    node->Userdata = (void*)Userdata;
     node->IsRunning = true;
     node->TriggerCount = 0;
     node->IsUsed = true;

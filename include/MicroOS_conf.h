@@ -69,10 +69,10 @@ extern "C"
  *====================================================================*/
 
 /** Queue capacity (number of messages) */
-#define MICROOS_QUEUE_DEPTH            256U
+#define MICROOS_QUEUE_DEPTH            10U
 
 /** Maximum payload size of a single message (bytes) */
-#define MICROOS_QUEUE_MSG_SIZE         32U
+#define MICROOS_QUEUE_MSG_SIZE         12U
 
 
 #ifdef __cplusplus
