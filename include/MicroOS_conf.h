@@ -61,7 +61,7 @@ extern "C"
 #define MICROOS_MESSAGEEVENT_ENABLE    1U
 
 /** Maximum number of Message Events */
-#define MICROOS_MESSAGEEVENT_SIZE      10U
+#define MICROOS_MESSAGEEVENT_SIZE      5U
 
 
 /*======================================================================
@@ -69,10 +69,10 @@ extern "C"
  *====================================================================*/
 
 /** Queue capacity (number of messages) */
-#define MICROOS_QUEUE_DEPTH            10U
+#define MICROOS_QUEUE_DEPTH            5U
 
 /** Maximum payload size of a single message (bytes) */
-#define MICROOS_QUEUE_MSG_SIZE         12U
+#define MICROOS_QUEUE_MSG_SIZE         8U
 
 
 #ifdef __cplusplus
