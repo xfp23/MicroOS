@@ -122,7 +122,7 @@ typedef struct MicroOS_Event_Sub_t
     char *name;                     // event name
     bool IsRunning;                 // Whether to run
     bool IsUsed;                    // Whether to used
-    volatile uint16_t TriggerCount; // Number of triggers
+    volatile bool Triggered;     // riggers
     void (*EventFunction)(void* data);
     void *Userdata;
     struct MicroOS_Event_Sub_t *next; // next node

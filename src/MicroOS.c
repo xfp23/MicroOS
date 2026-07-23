@@ -354,8 +354,6 @@ static void MicroOS_OSEvent_Init(void)
     OSEvent.EventPools[OS_EVENT_POOLSIZE - 1].next = NULL;
     OSEvent.active_event = NULL;
     OSEvent.free_event = &OSEvent.EventPools[0]; // 空闲事件链表
-
-    // MicroOSQueue_Init(&OSEvent.Event_queue);
 }
 
 MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunction_t EventFunction, const void *Userdata)
@@ -370,8 +368,7 @@ MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunc
             p->EventFunction = EventFunction;
             p->IsRunning = true;
             p->Userdata = (void *)Userdata;
-            // memset(&p->msg,0,sizeof(MicroOSQueue_Message_t));
-            p->TriggerCount = 0;
+            p->Triggered = false;
             p->IsUsed = true;
             return MICROOS_OK;
         }
@@ -389,7 +386,7 @@ MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunc
     node->EventFunction = EventFunction;
     node->Userdata = (void*)Userdata;
     node->IsRunning = true;
-    node->TriggerCount = 0;
+    node->Triggered = false;
     node->IsUsed = true;
 
     node->next = OSEvent.active_event;
@@ -431,7 +428,7 @@ MicroOS_Status_t MicroOS_TriggerEvent(uint8_t id)
     {
         if (p->id == id && p->IsUsed && p->IsRunning)
         {
-            p->TriggerCount++;
+            p->Triggered = true;
             return MICROOS_OK;
         }
         p = p->next;
@@ -475,11 +472,11 @@ static void MicroOS_DispatchAllEvents(void)
 
     while (p)
     {
-        if (p->IsUsed && p->IsRunning && p->TriggerCount > 0)
+        if (p->IsUsed && p->IsRunning && p->Triggered == true)
         {
             OSEvent.CurrentEventId = p->id;
             p->EventFunction(p->Userdata);
-            p->TriggerCount--;
+            p->Triggered = false;
         }
         p = p->next;
     }
