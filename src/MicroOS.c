@@ -61,7 +61,10 @@ MicroOS_Status_t MicroOS_Init()
     MicroOS_Task_Handle->CurrentTaskId = 0;
     MicroOS_OSdelay_Init();
     MicroOS_OSEvent_Init();
+#if MICROOS_SUBSCRIPTION_ENABLE
     MicroOS_PubSub_Init();
+#endif
+
 #if MICROOS_MESSAGEEVENT_ENABLE
     MicroOS_MessageEvent_Init();
 #endif
