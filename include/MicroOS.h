@@ -174,6 +174,7 @@ extern MicroOS_Status_t MicroOS_ResetTask(uint8_t id);
  */
 extern MicroOS_Status_t MicroOS_DeleteTask(uint8_t id);
 
+#if MICROOS_MESSAGEEVENT_ENABLE
 /**
  * @brief Registers a new Message event or updates an existing one.
  *
@@ -217,6 +218,124 @@ extern MicroOS_Status_t MicroOS_SuspendMessageEvent(uint8_t id);
  * @return MicroOS_Status_t
  */
 extern MicroOS_Status_t MicroOS_ResumeMessageEvent(uint8_t id);
+#endif
+
+#if MICROOS_SUBSCRIPTION_ENABLE
+/**
+ * @brief Register a new publish topic.
+ *
+ * Create a topic with the specified ID and name. The topic ID must be unique.
+ *
+ * @param id Topic identifier.
+ * @param topic Topic name.
+ * @return MicroOS_Status_t Operation result.
+ */
+extern MicroOS_Status_t MicroOS_CreateTopic(uint8_t id, const char *topic);
+
+/**
+ * @brief Delete a publish topic.
+ *
+ * Delete the specified topic and remove all associated subscriptions.
+ *
+ * @param id Topic identifier.
+ * @return MicroOS_Status_t Operation result.
+ */
+extern MicroOS_Status_t MicroOS_DeleteTopic(uint8_t id);
+
+/**
+ * @brief Subscribe to a topic.
+ *
+ * Register a subscriber callback for the specified topic.
+ *
+ * @param topic_id Topic identifier.
+ * @param sub_id Subscriber identifier.
+ * @param name Subscriber name.
+ * @param func Subscriber callback function.
+ * @return MicroOS_Status_t Operation result.
+ */
+extern MicroOS_Status_t MicroOS_Subscribe(uint8_t topic_id,uint8_t sub_id,const char *name,MicroOS_SubscriberFunction_t func);
+
+/**
+ * @brief Unsubscribe from a topic.
+ *
+ * Remove the specified subscriber from the topic.
+ *
+ * @param topic_id Topic identifier.
+ * @param sub_id Subscriber identifier.
+ * @return MicroOS_Status_t Operation result.
+ */
+extern MicroOS_Status_t MicroOS_Unsubscribe(uint8_t topic_id, uint8_t sub_id);
+
+/**
+ * @brief Publish data to a topic.
+ *
+ * Invoke all active subscriber callbacks registered to the topic.
+ *
+ * @param topic_id Topic identifier.
+ * @param Userdata Pointer to user-defined data.
+ * @return MicroOS_Status_t Operation result.
+ */
+extern MicroOS_Status_t MicroOS_Publish(uint8_t topic_id, const void *Userdata);
+
+/**
+ * @brief Suspend a subscriber.
+ *
+ * Suspend the specified subscriber without removing it from the topic.
+ *
+ * @param topic_id Topic identifier.
+ * @param sub_id Subscriber identifier.
+ * @return MicroOS_Status_t Operation result.
+ */
+extern MicroOS_Status_t MicroOS_SuspendSubscription(uint8_t topic_id, uint8_t sub_id);
+
+/**
+ * @brief Resume a suspended subscriber.
+ *
+ * Resume callback execution for the specified subscriber.
+ *
+ * @param topic_id Topic identifier.
+ * @param sub_id Subscriber identifier.
+ * @return MicroOS_Status_t Operation result.
+ */
+extern MicroOS_Status_t MicroOS_ResumeSubscription(uint8_t topic_id, uint8_t sub_id);
+
+/**
+ * @brief Remove all subscribers from a topic.
+ *
+ * The topic remains valid after this operation.
+ *
+ * @param topic_id Topic identifier.
+ * @return MicroOS_Status_t Operation result.
+ */
+extern MicroOS_Status_t MicroOS_ClearSubscriptions(uint8_t topic_id);
+
+/**
+ * @brief Get the number of subscribers of a topic.
+ *
+ * @param topic_id Topic identifier.
+ * @return uint8_t Number of registered subscribers.
+ */
+extern uint8_t MicroOS_SubscriberCount(uint8_t topic_id);
+
+/**
+ * @brief Check whether a topic is suspended.
+ *
+ * @param topic_id Topic identifier.
+ * @return true Topic is suspended.
+ * @return false Topic is active.
+ */
+extern bool MicroOS_IsTopicSuspended(uint8_t topic_id);
+
+/**
+ * @brief Check whether a subscriber is suspended.
+ *
+ * @param topic_id Topic identifier.
+ * @param sub_id Subscriber identifier.
+ * @return true Subscriber is suspended.
+ * @return false Subscriber is active.
+ */
+extern bool MicroOS_IsSubscriptionSuspended(uint8_t topic_id, uint8_t sub_id);
+#endif
 
 #ifdef __cplusplus
 }

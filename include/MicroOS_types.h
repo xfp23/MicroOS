@@ -46,6 +46,7 @@ typedef void (*MicroOS_OSdelayFunction_t)(void *Userdata);
  */
 typedef void (*MicroOSQueue_EventFunction_t)(const MicroOSQueue_Message_t* QueueMsg);
 
+typedef void (*MicroOS_SubscriberFunction_t)(void *Userdata);
 /**
  * @brief MicroOS status codes
  */
@@ -155,6 +156,32 @@ typedef struct
     uint8_t CurrentMessageEventId;               /**< Current running Message ID */
     uint8_t MessageNum;                             /**< Number of Message added */
 } MicroOS_MessageEvent_t;
+
+typedef struct
+{
+    char *name;
+    bool IsUsed;
+    bool IsRunning;
+    MicroOS_SubscriberFunction_t callback;
+} MicroOS_Subscriber_t; // 订阅者
+ 
+typedef struct
+{
+    bool IsUsed;
+    bool IsRunning;
+    volatile bool IsPending;
+ 
+    char *name;              
+    volatile void *Userdata;
+    MicroOS_Subscriber_t subscribers[MICROOS_SUBSCRIBER_NUM];
+} MicroOS_Topic_t; // 主题
+ 
+typedef struct
+{
+    // O(1) 查找：没有独立 ID，数组下标本身就是 ID
+    MicroOS_Topic_t topics[MICROOS_TOPIC_SIZE];
+    uint8_t TopicCount;                          
+} MicroOS_PubSub_t; // 发布订阅管理对象
 
 #ifdef __cplusplus
 }

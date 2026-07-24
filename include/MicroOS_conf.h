@@ -74,6 +74,11 @@ extern "C"
 /** Maximum payload size of a single message (bytes) */
 #define MICROOS_QUEUE_MSG_SIZE         8U
 
+#define MICROOS_SUBSCRIPTION_ENABLE    1U
+
+#define MICROOS_TOPIC_SIZE             1U
+
+#define MICROOS_SUBSCRIBER_NUM          1U
 
 #ifdef __cplusplus
 }

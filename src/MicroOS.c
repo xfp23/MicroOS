@@ -31,6 +31,16 @@ static void MicroOS_MessageEvent_Init(void);
 static void MicroOS_MessageEventDispatch(void);
 #endif
 
+#if MICROOS_SUBSCRIPTION_ENABLE
+
+static MicroOS_PubSub_t OSPubSub = {0};
+
+static void MicroOS_PubSub_Init(void);
+
+static void MicroOS_TopicDispatch(void);
+
+#endif
+
 MicroOS_Status_t MicroOS_Init()
 {
 
@@ -40,6 +50,7 @@ MicroOS_Status_t MicroOS_Init()
     MicroOS_Task_Handle->CurrentTaskId = 0;
     MicroOS_OSdelay_Init();
     MicroOS_OSEvent_Init();
+    MicroOS_PubSub_Init();
 #if MICROOS_MESSAGEEVENT_ENABLE
     MicroOS_MessageEvent_Init();
 #endif
@@ -58,6 +69,10 @@ void MicroOS_StartScheduler(void)
 
 #if MICROOS_MESSAGEEVENT_ENABLE
         MicroOS_MessageEventDispatch();
+#endif
+
+#if MICROOS_SUBSCRIPTION_ENABLE
+        MicroOS_TopicDispatch();
 #endif
 
         for (uint8_t i = 0; i < MICROOS_TASK_SIZE; i++)
@@ -384,7 +399,7 @@ MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunc
 
     node->id = id;
     node->EventFunction = EventFunction;
-    node->Userdata = (void*)Userdata;
+    node->Userdata = (void *)Userdata;
     node->IsRunning = true;
     node->Triggered = false;
     node->IsUsed = true;
@@ -608,6 +623,260 @@ static void MicroOS_MessageEventDispatch(void)
             OSMessageEvent.CurrentMessageEventId = i;
             evt->MessageEventFunction(&evt->Userdata);
         }
+    }
+}
+#endif
+
+#if MICROOS_SUBSCRIPTION_ENABLE
+
+static void MicroOS_PubSub_Init(void)
+{
+    memset(&OSPubSub, 0, sizeof(MicroOS_PubSub_t));
+}
+ 
+MicroOS_Status_t MicroOS_CreateTopic(uint8_t id, const char *topic)
+{
+    if (id >= MICROOS_TOPIC_SIZE)
+    {
+        return MICROOS_INVALID_PARAM;
+    }
+ 
+    if (OSPubSub.topics[id].IsUsed)
+    {
+        return MICROOS_BUSY;
+    }
+ 
+    if (OSPubSub.TopicCount >= MICROOS_TOPIC_SIZE)
+    {
+        return MICROOS_BUSY;
+    }
+ 
+    OSPubSub.TopicCount++;
+    OSPubSub.topics[id].IsUsed = true;
+    OSPubSub.topics[id].name = (char *)topic;
+    memset(OSPubSub.topics[id].subscribers, 0, sizeof(OSPubSub.topics[id].subscribers));
+    OSPubSub.topics[id].Userdata = NULL;
+    OSPubSub.topics[id].IsRunning = true;
+    OSPubSub.topics[id].IsPending = false;
+ 
+    return MICROOS_OK;
+}
+ 
+MicroOS_Status_t MicroOS_DeleteTopic(uint8_t id)
+{
+    if (id >= MICROOS_TOPIC_SIZE)
+    {
+        return MICROOS_INVALID_PARAM;
+    }
+ 
+    if (OSPubSub.topics[id].IsUsed)
+    {
+        OSPubSub.TopicCount--;
+        OSPubSub.topics[id].IsUsed = false;
+        OSPubSub.topics[id].name = NULL;
+        memset(OSPubSub.topics[id].subscribers, 0, sizeof(OSPubSub.topics[id].subscribers));
+        OSPubSub.topics[id].Userdata = NULL;
+        OSPubSub.topics[id].IsRunning = false;
+        OSPubSub.topics[id].IsPending = false;
+    }
+ 
+    return MICROOS_OK;
+}
+ 
+// 订阅一个主题
+MicroOS_Status_t MicroOS_Subscribe(uint8_t topic_id, uint8_t sub_id, const char *name, MicroOS_SubscriberFunction_t func)
+{
+    if (topic_id >= MICROOS_TOPIC_SIZE || sub_id >= MICROOS_SUBSCRIBER_NUM)
+    {
+        return MICROOS_INVALID_PARAM;
+    }
+ 
+    if (!OSPubSub.topics[topic_id].IsUsed)
+    {
+        return MICROOS_ERROR;
+    }
+ 
+    if (OSPubSub.topics[topic_id].subscribers[sub_id].IsUsed)
+    {
+        return MICROOS_BUSY;
+    }
+ 
+    OSPubSub.topics[topic_id].subscribers[sub_id].IsUsed = true;
+    OSPubSub.topics[topic_id].subscribers[sub_id].IsRunning = true;
+    OSPubSub.topics[topic_id].subscribers[sub_id].name = (char *)name;
+    OSPubSub.topics[topic_id].subscribers[sub_id].callback = func;
+ 
+    return MICROOS_OK;
+}
+ 
+MicroOS_Status_t MicroOS_Unsubscribe(uint8_t topic_id, uint8_t sub_id)
+{
+    if (topic_id >= MICROOS_TOPIC_SIZE || sub_id >= MICROOS_SUBSCRIBER_NUM)
+    {
+        return MICROOS_INVALID_PARAM;
+    }
+ 
+    if (!OSPubSub.topics[topic_id].IsUsed)
+    {
+        return MICROOS_ERROR;
+    }
+ 
+    if (!OSPubSub.topics[topic_id].subscribers[sub_id].IsUsed)
+    {
+        return MICROOS_ERROR;
+    }
+ 
+    memset(&OSPubSub.topics[topic_id].subscribers[sub_id], 0, sizeof(MicroOS_Subscriber_t));
+ 
+    return MICROOS_OK;
+}
+ 
+MicroOS_Status_t MicroOS_Publish(uint8_t topic_id, const void *Userdata)
+{
+    if (topic_id >= MICROOS_TOPIC_SIZE)
+    {
+        return MICROOS_INVALID_PARAM;
+    }
+ 
+    if (!OSPubSub.topics[topic_id].IsUsed)
+    {
+        return MICROOS_ERROR;
+    }
+ 
+    if (!OSPubSub.topics[topic_id].IsRunning)
+    {
+        return MICROOS_BUSY;
+    }
+ 
+    OSPubSub.topics[topic_id].IsPending = true;
+    OSPubSub.topics[topic_id].Userdata = (void *)Userdata;
+ 
+    return MICROOS_OK;
+}
+ 
+MicroOS_Status_t MicroOS_SuspendSubscription(uint8_t topic_id, uint8_t sub_id)
+{
+    if (topic_id >= MICROOS_TOPIC_SIZE || sub_id >= MICROOS_SUBSCRIBER_NUM)
+    {
+        return MICROOS_INVALID_PARAM;
+    }
+ 
+    if (!OSPubSub.topics[topic_id].IsUsed)
+    {
+        return MICROOS_ERROR;
+    }
+ 
+    OSPubSub.topics[topic_id].subscribers[sub_id].IsRunning = false;
+ 
+    return MICROOS_OK;
+}
+ 
+MicroOS_Status_t MicroOS_ResumeSubscription(uint8_t topic_id, uint8_t sub_id)
+{
+    if (topic_id >= MICROOS_TOPIC_SIZE || sub_id >= MICROOS_SUBSCRIBER_NUM)
+    {
+        return MICROOS_INVALID_PARAM;
+    }
+ 
+    if (!OSPubSub.topics[topic_id].IsUsed)
+    {
+        return MICROOS_ERROR;
+    }
+ 
+    OSPubSub.topics[topic_id].subscribers[sub_id].IsRunning = true;
+ 
+    return MICROOS_OK;
+}
+ 
+MicroOS_Status_t MicroOS_ClearSubscriptions(uint8_t topic_id)
+{
+    if (topic_id >= MICROOS_TOPIC_SIZE)
+    {
+        return MICROOS_INVALID_PARAM;
+    }
+ 
+    if (!OSPubSub.topics[topic_id].IsUsed)
+    {
+        return MICROOS_ERROR;
+    }
+ 
+    memset(OSPubSub.topics[topic_id].subscribers, 0, sizeof(OSPubSub.topics[topic_id].subscribers));
+ 
+    return MICROOS_OK;
+}
+ 
+uint8_t MicroOS_SubscriberCount(uint8_t topic_id) 
+{
+    if (topic_id >= MICROOS_TOPIC_SIZE)
+    {
+        return 0;
+    }
+ 
+    if (!OSPubSub.topics[topic_id].IsUsed)
+    {
+        return 0;
+    }
+ 
+    uint8_t count = 0;
+    for (uint8_t i = 0; i < MICROOS_SUBSCRIBER_NUM; i++)
+    {
+        if (OSPubSub.topics[topic_id].subscribers[i].IsUsed)
+        {
+            count++;
+        }
+    }
+ 
+    return count;
+}
+
+bool MicroOS_IsTopicSuspended(uint8_t topic_id)
+{
+    if (topic_id >= MICROOS_TOPIC_SIZE)
+    {
+        return false;
+    }
+ 
+    return OSPubSub.topics[topic_id].IsRunning == false;
+}
+ 
+bool MicroOS_IsSubscriptionSuspended(uint8_t topic_id, uint8_t sub_id)
+{
+    if (topic_id >= MICROOS_TOPIC_SIZE || sub_id >= MICROOS_SUBSCRIBER_NUM)
+    {
+        return false;
+    }
+ 
+    return OSPubSub.topics[topic_id].subscribers[sub_id].IsRunning == false;
+}
+
+static void MicroOS_TopicDispatch(void)
+{
+    for(int i = 0; i < MICROOS_TOPIC_SIZE; i++)
+    {
+        if(!OSPubSub.topics[i].IsUsed || !OSPubSub.topics[i].IsRunning)
+        {
+            continue;
+        }
+
+        if(!OSPubSub.topics[i].IsPending)
+        {
+            continue;
+        }
+
+        for(int j = 0; j < MICROOS_SUBSCRIBER_NUM; j++)
+        {
+            if(!OSPubSub.topics[i].subscribers[j].IsRunning || !OSPubSub.topics[i].subscribers[j].IsUsed)
+            {
+                continue;
+            }
+
+            if(OSPubSub.topics[i].subscribers[j].callback)
+            {
+                OSPubSub.topics[i].subscribers[j].callback((void*)OSPubSub.topics[i].Userdata);
+            }
+        }
+
+        OSPubSub.topics[i].IsPending = false;
     }
 }
 #endif
