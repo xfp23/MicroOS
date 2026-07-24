@@ -125,7 +125,7 @@ extern void MicroOS_TickHandler(void);
  *
  * @return uint32_t Tick count
  */
-extern uint32_t MicroOS_GetTick();
+extern uint32_t MicroOS_GetTick(void);
 
 /**
  * @brief Suspend the task with the specified ID
