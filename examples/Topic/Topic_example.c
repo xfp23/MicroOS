@@ -1,51 +1,128 @@
 #include "MicroOS.h"
 
-uint16_t GetAdc_Value()
+/**
+ * @brief Simulate ADC hardware sampling.
+ *
+ * @return ADC raw value.
+ */
+uint16_t GetAdc_Value(void)
 {
-    return 0xFFF3;
+    static uint16_t value = 0;
+
+    value += 0x0100;
+
+    return value;
 }
 
-void CalSensor(void *param) // 模拟计算传感器事件
+/**
+ * @brief ADC calculation subscriber.
+ *
+ * Receive ADC conversion complete notification and calculate sensor value.
+ *
+ * @param param Pointer to ADC data.
+ */
+void CalSensor(void *param)
 {
     uint16_t *adc = (uint16_t *)param;
 
     float sensor = *adc / 11.2f;
+
+    printf("Sensor Value: %.2f\r\n", sensor);
 }
 
-void CheckFault(void *param) // 模拟检查故障事件
+/**
+ * @brief Fault detection subscriber.
+ *
+ * Check ADC value and simulate fault detection.
+ *
+ * @param param Pointer to ADC data.
+ */
+void CheckFault(void *param)
 {
     uint16_t *adc = (uint16_t *)param;
 
-    if (*adc > 0xffffdd)
+    if (*adc > 0x8000)
     {
         uint8_t fault = 1;
+
+        printf("Fault detected! ADC=0x%04X\r\n", *adc);
     }
 }
 
+/**
+ * @brief ADC data buffer.
+ *
+ * The Subscription module only transfers the pointer.
+ * User is responsible for maintaining the data lifetime.
+ */
 static uint16_t adc = 0;
 
+/**
+ * @brief ADC acquisition task.
+ *
+ * Periodically collects ADC data.
+ * When conversion is completed, publish the ADC topic.
+ *
+ * @param param User parameter.
+ */
 void AdcCollect_Task(void *param)
 {
+    adc = GetAdc_Value();
 
-    adc += GetAdc_Value();
+    printf("ADC Sample: 0x%04X\r\n", adc);
 
-    if (adc > 0xEFEFDD) // 模拟采集完成
-    {
-        // 当像主题发布消息时，订阅了该主题的所有订阅者都会被触发
-        MicroOS_Publish(0, (void *)&adc); // 如果想传递数据，必须是全局的，订阅不会帮你管理生命周期,如果你有需求，可以subscribe + messageEvent组合的方式实现
-                                          // 这样做的目的是由于整个队列是静态的，为了节省ram的开销
-    }
+    /*
+     * Publish ADC completion event.
+     *
+     * All subscribers registered to this topic
+     * will be notified.
+     *
+     * Note:
+     * Subscription does not copy or manage data lifetime.
+     * The user must ensure that the data remains valid
+     * during callback execution.
+     *
+     * If data buffering is required,
+     * Subscription can be combined with Message Event.
+     */
+    MicroOS_Publish(0, &adc);
 }
 
-int main()
+int main(void)
 {
+    /*
+     * Initialize MicroOS.
+     */
     MicroOS_Init();
 
-    MicroOS_CreateTopic(0, "ADC_Complete"); // 创建了一个主题
-    MicroOS_Subscribe(0, 0, "CalSensor", CalSensor);
-    MicroOS_Subscribe(0, 1, "CheckFault", CheckFault);
+    /*
+     * Create ADC completion topic.
+     */
+    MicroOS_CreateTopic(0, "ADC_Complete");
 
-    MicroOS_AddTask(0, "ADC_Collect", AdcCollect_Task, NULL, OS_MS_TICKS(10));
+    /*
+     * Register subscribers.
+     *
+     * When ADC_Complete is published:
+     *
+     * ADC_Complete
+     *       |
+     *       +---- CalSensor()
+     *       |
+     *       +---- CheckFault()
+     */
+    MicroOS_Subscribe(0,0,"CalSensor",CalSensor);
 
+    MicroOS_Subscribe(0,1,"CheckFault",CheckFault);
+
+    /*
+     * Create ADC acquisition task.
+     *
+     * The task runs every 10ms.
+     */
+    MicroOS_AddTask(0,"ADC_Collect",AdcCollect_Task,NULL,OS_MS_TICKS(10));
+    /*
+     * Start scheduler.
+     */
     MicroOS_StartScheduler();
 }

@@ -32,7 +32,7 @@ extern "C"
 typedef struct 
 {
     size_t len;
-    uint8_t data[MICROOS_QUEUE_MSG_SIZE];
+    uint8_t data[MICROOS_QUEUE_SINGLE_MSG_SIZE];
 } MicroOSQueue_Message_t;
 
 
@@ -48,4 +48,5 @@ typedef struct
 #ifdef __cplusplus
 }
 #endif
+
 #endif

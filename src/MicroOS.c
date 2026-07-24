@@ -1,3 +1,14 @@
+/**
+ * @file MicroOS.c
+ * @author https://xfp23.github.io
+ * @brief MicroOS Source file
+ * @version 2.0.1
+ * @date 2026-07-24
+ * 
+ * @copyright Copyright (c) 2026
+ * 
+ */
+
 #include "MicroOS.h"
 #include "stdlib.h"
 #include "string.h"
@@ -246,12 +257,12 @@ MicroOS_Status_t MicroOS_WakeupTask(uint8_t id)
 static void MicroOS_OSdelay_Init(void)
 {
     // 初始化任务池
-    for (int i = 0; i < OS_DELAY_POOLSIZE - 1; i++)
+    for (int i = 0; i < MICROOS_OSDELAY_POOL_SIZE - 1; i++)
     {
         OSdelay.delay_pool[i].next = &OSdelay.delay_pool[i + 1];
     }
     // 最后一个节点指向 NULL
-    OSdelay.delay_pool[OS_DELAY_POOLSIZE - 1].next = NULL;
+    OSdelay.delay_pool[MICROOS_OSDELAY_POOL_SIZE - 1].next = NULL;
     OSdelay.free_delay = &OSdelay.delay_pool[0]; // 空闲任务池
     OSdelay.active_delay = NULL;                 // 活动任务池
 }
@@ -361,12 +372,12 @@ static void MicroOS_OSdelay_StartScheduler(void)
 static void MicroOS_OSEvent_Init(void)
 {
     // 初始化链表
-    for (uint8_t i = 0; i < OS_EVENT_POOLSIZE - 1; i++)
+    for (uint8_t i = 0; i < MICROOS_EVENT_POOL_SIZE - 1; i++)
     {
         OSEvent.EventPools[i].next = &OSEvent.EventPools[i + 1];
     }
 
-    OSEvent.EventPools[OS_EVENT_POOLSIZE - 1].next = NULL;
+    OSEvent.EventPools[MICROOS_EVENT_POOL_SIZE - 1].next = NULL;
     OSEvent.active_event = NULL;
     OSEvent.free_event = &OSEvent.EventPools[0]; // 空闲事件链表
 }

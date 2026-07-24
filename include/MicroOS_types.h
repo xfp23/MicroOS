@@ -5,7 +5,7 @@
  * @file MicroOS_types.h
  * @author (https://xfp23.github.io)
  * @brief Define types
- * @version 0.1
+ * @version 2.0.1
  * @date 2025-08-31
  *
  * @copyright Copyright (c) 2025
@@ -110,7 +110,7 @@ typedef struct MicroOS_OSdelay_Sub_t
 
 typedef struct
 {
-    MicroOS_OSdelay_Sub_t delay_pool[OS_DELAY_POOLSIZE];
+    MicroOS_OSdelay_Sub_t delay_pool[MICROOS_OSDELAY_POOL_SIZE];
     MicroOS_OSdelay_Sub_t *free_delay;
     MicroOS_OSdelay_Sub_t *active_delay;
     uint8_t OSdelayNum;
@@ -131,7 +131,7 @@ typedef struct MicroOS_Event_Sub_t
 
 typedef struct
 {
-    MicroOS_Event_Sub_t EventPools[OS_EVENT_POOLSIZE]; // event pool
+    MicroOS_Event_Sub_t EventPools[MICROOS_EVENT_POOL_SIZE]; // event pool
     MicroOS_Event_Sub_t *free_event;                   // idle events
     MicroOS_Event_Sub_t *active_event;                 // active events
     uint8_t CurrentEventId;                            // Current event ID

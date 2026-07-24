@@ -42,7 +42,7 @@ MicroOS_Status_t MicroOSQueue_Push(MicroOSQueue_Obj_t *obj,const void *data,size
     MICROOS_CHECK_PTR(data);
 
 
-    if(size > MICROOS_QUEUE_MSG_SIZE)
+    if(size > MICROOS_QUEUE_SINGLE_MSG_SIZE)
     {
         return MICROOS_ERROR;
     }

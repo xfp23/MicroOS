@@ -18,7 +18,7 @@ Key features:
 * Optional task sleeping mechanism.
 * No dynamic memory anywhere in the library (no `malloc`), suitable for MCUs with small RAM/Flash and for safety-critical (e.g. automotive) codebases.
 
-**Version:** `1.2.3`
+**Version:** `2.0.1`
 
 ---
 
@@ -34,6 +34,7 @@ Key features:
 * **Tick-based scheduling:** Driven by a global tick counter incremented in a hardware ISR.
 * **Callback-based delay system:** Implemented using a static pool (`OS_DELAY_POOLSIZE`). Unlike a polling-style delay, `MicroOS_OSdelay` registers a callback that the scheduler invokes automatically once the delay expires — no manual "is it done yet" check or manual cleanup is needed.
 * **User-defined frequency:** `MICROOS_FREQ_HZ` must match the hardware tick source.
+* **Independent Queue Module:** `MicroOS` provides a standalone queue library. While it serves the `Message Event` module, it can also be used independently by the user. However, it is governed by the `MICROOS_QUEUE_DEPTH` and `MICROOS_QUEUE_SINGLE_MSG_SIZE` settings; please consider your actual requirements and available **RAM** when determining the appropriate allocation.
 
 ---
 
@@ -42,45 +43,93 @@ Key features:
 All configuration macros live in `MicroOS_conf.h`.
 
 ```c
-/*======================================================================
- * MicroOS Version
- *====================================================================*/
-#define MICROOS_VERSION_MAJOR          "1.2.3"   // MicroOS version
+/*==============================================================================
+ * Version
+ *============================================================================*/
 
-/*======================================================================
+/** MicroOS version */
+#define MICROOS_VERSION_MAJOR                 "2.0.1"
+
+
+/*==============================================================================
  * System Configuration
- *====================================================================*/
-#define MICROOS_FREQ_HZ                1000U     // System tick frequency (Hz)
+ *============================================================================*/
 
-/*======================================================================
- * Task Module Configuration
- *====================================================================*/
-#define MICROOS_TASK_SIZE              10U       // Maximum number of scheduler tasks
-#define OS_DELAY_POOLSIZE              10U       // OSdelay object pool size
+/** System tick frequency (Hz) */
+#define MICROOS_FREQ_HZ                       1000U
 
-/*======================================================================
- * Event Module Configuration
- *====================================================================*/
-#define OS_EVENT_POOLSIZE              10U       // Maximum number of registered events
 
-/*======================================================================
- * Message Event Module Configuration
- *====================================================================*/
-#define MICROOS_MESSAGEEVENT_ENABLE    1U        // Enable Message Event module (0: disable, 1: enable)
-#define MICROOS_MESSAGEEVENT_SIZE      10U       // Maximum number of Message Events
+/*==============================================================================
+ * Task Module
+ *============================================================================*/
 
-/*======================================================================
- * Queue Module Configuration
- *====================================================================*/
-#define MICROOS_QUEUE_DEPTH            10U       // Queue capacity (number of messages)
-#define MICROOS_QUEUE_MSG_SIZE         12U       // Maximum payload size of a single message (bytes)
+/** Maximum number of scheduler tasks */
+#define MICROOS_TASK_SIZE                     10U
+
+/** Delay object pool size */
+#define MICROOS_OSDELAY_POOL_SIZE               10U
+
+
+/*==============================================================================
+ * Event Module
+ *============================================================================*/
+
+/** Maximum number of registered events */
+#define MICROOS_EVENT_POOL_SIZE               10U
+
+
+/*==============================================================================
+ * Message Event Module
+ *============================================================================*/
+
+/** Enable Message Event module (0: Disable, 1: Enable) */
+#define MICROOS_MESSAGEEVENT_ENABLE           1U
+
+/** Maximum number of Message Events */
+#define MICROOS_MESSAGEEVENT_SIZE             5U
+
+
+/*==============================================================================
+ * Queue Module
+ *============================================================================*/
+
+/** Queue depth (number of messages) */
+#define MICROOS_QUEUE_DEPTH                   5U
+
+/** Maximum payload size of a single message (bytes) */
+#define MICROOS_QUEUE_SINGLE_MSG_SIZE         8U
+
+
+/*==============================================================================
+ * Subscription Module
+ *============================================================================*/
+
+/** Enable Subscription module (0: Disable, 1: Enable) */
+#define MICROOS_SUBSCRIPTION_ENABLE           1U
+
+/** Maximum number of topics */
+#define MICROOS_TOPIC_SIZE                    5U
+
+/** Maximum number of subscribers per topic */
+#define MICROOS_SUBSCRIBER_NUM                3U
 ```
 
 *The user must configure `MICROOS_FREQ_HZ` to match the timer interrupt frequency (e.g., 1000 Hz for a 1 ms tick).*
 
-Every Message Event owns its own queue instance sized by `MICROOS_QUEUE_DEPTH` (how many pending messages it can hold) and `MICROOS_QUEUE_MSG_SIZE` (max bytes per message). Both are shared across all Message Events — there is currently no per-event override. If your event payloads vary a lot in size, size `MICROOS_QUEUE_MSG_SIZE` for your largest payload.
+Every Message Event owns its own queue instance sized by `MICROOS_QUEUE_DEPTH` (how many pending messages it can hold) and `MICROOS_QUEUE_SINGLE_MSG_SIZE` (max bytes per message). Both are shared across all Message Events — there is currently no per-event override. If your event payloads vary a lot in size, size `MICROOS_QUEUE_SINGLE_MSG_SIZE` for your largest payload.
 
 Setting `MICROOS_MESSAGEEVENT_ENABLE` to `0` disables the Message Event module.
+
+The subscription module implements a one-to-many event-triggering mechanism; a topic sends notifications to all subscribers, invoking their respective callbacks.
+
+You can disable the subscription module entirely by setting `MICROOS_SUBSCRIPTION_ENABLE` to `0`.
+The module does not manage the application **lifecycle**; it is solely responsible for executing the callbacks associated with the user-provided parameters. You are responsible for managing the lifecycle yourself.
+
+If data storage capabilities are required for the subscription module, you can combine the ***subscription module*** with the ***message event module***, or implement a custom solution using an independent queue as described in section `4.11`.
+
+This design reflects a trade-off made by the library author to account for the limited RAM resources of MCUs. The subscription module itself handles only message notification and module decoupling—not data lifecycle management—thereby minimizing memory usage and enhancing execution efficiency.
+
+By providing a separate queue module, the library allows users to flexibly integrate data buffering capabilities based on specific application needs, avoiding the overhead of additional RAM consumption in subscription scenarios where such buffering is unnecessary. This approach ensures resource usage remains manageable while maintaining the high degree of flexibility regarding memory allocation essential to embedded systems.
 
 ### **3.1 Time Conversion Macros**
 
@@ -257,7 +306,7 @@ MicroOS_Status_t MicroOS_ResumeMessageEvent(uint8_t id);
 
 * `RegisterMessageEvent` – Add or update a message event callback with a name. Unlike a plain Event, no payload is bound here — payloads are supplied per-trigger.
 * `DeleteMessageEvent` – Remove a message event and its queue contents.
-* `TriggerMessageEvent` – Copies `data_len` bytes from `data` into the event's static queue (`data_len` must not exceed `MICROOS_QUEUE_MSG_SIZE`). Safe to call repeatedly — e.g. from an ISR — before the scheduler has dispatched previous triggers; each payload is preserved in arrival order rather than overwritten. Returns an error if the queue is full.
+* `TriggerMessageEvent` – Copies `data_len` bytes from `data` into the event's static queue (`data_len` must not exceed `MICROOS_QUEUE_SINGLE_MSG_SIZE`). Safe to call repeatedly — e.g. from an ISR — before the scheduler has dispatched previous triggers; each payload is preserved in arrival order rather than overwritten. Returns an error if the queue is full.
 * `SuspendMessageEvent` – Temporarily disable a message event from executing (queued messages are retained but not dispatched).
 * `ResumeMessageEvent` – Reactivate a suspended message event.
 
@@ -266,7 +315,7 @@ The callback receives a pointer to the dequeued message (`data` + `len`), owned 
 ```c
 typedef struct {
     uint16_t len;
-    uint8_t  data[MICROOS_QUEUE_MSG_SIZE];
+    uint8_t  data[MICROOS_QUEUE_SINGLE_MSG_SIZE];
 } MicroOSQueue_Message_t;
 ```
 
@@ -294,6 +343,261 @@ int main(void) {
     MicroOS_StartScheduler();
 }
 ```
+
+### **4.10 Subscription Module Management**
+
+```c
+MicroOS_Status_t MicroOS_CreateTopic(uint8_t id,
+                                     const char *topic);
+
+MicroOS_Status_t MicroOS_DeleteTopic(uint8_t id);
+
+MicroOS_Status_t MicroOS_Subscribe(uint8_t topic_id,
+                                   uint8_t sub_id,
+                                   const char *name,
+                                   MicroOS_SubscriberFunction_t func);
+
+MicroOS_Status_t MicroOS_Unsubscribe(uint8_t topic_id,
+                                     uint8_t sub_id);
+
+MicroOS_Status_t MicroOS_Publish(uint8_t topic_id,
+                                 const void *Userdata);
+
+MicroOS_Status_t MicroOS_SuspendSubscription(uint8_t topic_id,
+                                             uint8_t sub_id);
+
+MicroOS_Status_t MicroOS_ResumeSubscription(uint8_t topic_id,
+                                            uint8_t sub_id);
+
+MicroOS_Status_t MicroOS_ClearSubscriptions(uint8_t topic_id);
+
+uint8_t MicroOS_SubscriberCount(uint8_t topic_id);
+
+bool MicroOS_IsTopicSuspended(uint8_t topic_id);
+
+bool MicroOS_IsSubscriptionSuspended(uint8_t topic_id,
+                                     uint8_t sub_id);
+```
+
+* `CreateTopic` – Create a publish topic and assign a unique topic ID. The topic serves as the data distribution entry point in the publish-subscribe mechanism. Each topic can contain multiple subscribers.
+* `DeleteTopic` – Delete the specified topic and remove all subscription relationships associated with that topic.
+* `Subscribe` – Add a subscriber to the specified topic and register the corresponding callback function. When data is published to the topic, the callback functions of all active subscribers will be invoked.
+* `Unsubscribe` – Remove a subscriber from the specified topic so that it no longer receives data published by that topic.
+* `Publish` – Publish data to the specified topic and sequentially invoke the callback functions of all subscribers that are not suspended. The data is passed through the `Userdata` pointer provided by the user and is not copied internally.
+* `SuspendSubscription` – Suspend the specified subscriber. During suspension, the subscriber will not receive data published by the topic, but the subscription relationship will be retained.
+* `ResumeSubscription` – Resume the specified subscriber and allow it to receive topic data again.
+* `ClearSubscriptions` – Clear all subscribers from the specified topic without deleting the topic itself.
+* `SubscriberCount` – Get the current number of registered subscribers for the specified topic.
+* `IsTopicSuspended` – Check whether the specified topic is currently suspended.
+* `IsSubscriptionSuspended` – Check whether the specified subscriber is currently suspended.
+
+Subscription callback function prototype:
+
+```c
+typedef void (*MicroOS_SubscriberFunction_t)(void *userdata);
+```
+
+The callback function parameter is the user data pointer passed during publishing:
+
+```c
+void CAN_UpdateHandler(void *userdata)
+{
+    uint8_t *data = (uint8_t *)userdata;
+
+    // User processing data
+}
+
+int main(void)
+{
+    MicroOS_Init();
+
+    MicroOS_CreateTopic(0, "CAN_RX");
+
+    MicroOS_Subscribe(0,
+                      0,
+                      "CAN_Handler",
+                      CAN_UpdateHandler);
+
+    MicroOS_Publish(0, data);
+
+    MicroOS_StartScheduler();
+}
+```
+
+The Subscription module adopts the Publish-Subscribe model to achieve decoupling between publishers and subscribers:
+
+```txt
+Topic
+ |
+ +-- Subscriber 0
+ |
+ +-- Subscriber 1
+ |
+ +-- Subscriber 2
+
+
+Publish()
+    |
+    +--> Subscriber Callback
+    +--> Subscriber Callback
+    +--> Subscriber Callback
+```
+
+***Each topic is managed through a unique ID. The publisher does not need to know the number of subscribers or their specific implementations. Subscribers only need to register a callback to receive data from the corresponding topic. This mechanism is suitable for event notification, state synchronization, module communication, and other scenarios.***
+
+## **4.11 Queue Module**
+
+```c
+MicroOS_Status_t MicroOSQueue_Init(MicroOSQueue_Obj_t *obj);
+
+MicroOS_Status_t MicroOSQueue_Push(MicroOSQueue_Obj_t *obj,
+                                   const void *data,
+                                   size_t size);
+
+MicroOS_Status_t MicroOSQueue_Pop(MicroOSQueue_Obj_t *obj,
+                                  void *data,
+                                  size_t *size);
+
+bool MicroOSQueue_IsEmpty(MicroOSQueue_Obj_t *obj);
+
+bool MicroOSQueue_IsFull(MicroOSQueue_Obj_t *obj);
+
+MicroOS_Status_t MicroOSQueue_Reset(MicroOSQueue_Obj_t *obj);
+```
+
+* `MicroOSQueue_Init` – Initialize a queue object. This function initializes the internal state of the queue, including read/write indexes and queue buffer management information. The queue uses static memory management and does not dynamically allocate memory.
+
+* `MicroOSQueue_Push` – Write a data item into the queue. The function copies the data pointed to by the user-provided `data` into the internal queue buffer and stores the message according to the data length specified by `size`. An error will be returned when the queue is full or the data length exceeds the maximum size of a single message.
+
+* `MicroOSQueue_Pop` – Read a data item from the queue. The function copies the message stored in the queue into the user-provided `data` buffer and returns the actual read data length through `size`. An error will be returned when the queue is empty.
+
+* `MicroOSQueue_IsEmpty` – Check whether the queue is empty. Returns `true` if the queue currently contains no messages; otherwise returns `false`.
+
+* `MicroOSQueue_IsFull` – Check whether the queue is full. Returns `true` if the queue cannot store any additional messages; otherwise returns `false`.
+
+* `MicroOSQueue_Reset` – Reset the queue. Clears all messages in the queue and restores the queue to its initial state. This operation does not release any memory.
+
+### **Queue Data Structure**
+
+The queue internally uses a static array for storage:
+
+```c
+typedef struct
+{
+    uint16_t len;
+    uint8_t  data[MICROOS_QUEUE_MSG_SIZE];
+
+} MicroOSQueue_Message_t;
+```
+
+Where:
+
+* `len` – Indicates the length of the current message data.
+* `data` – Used to store message content. The maximum length is configured by `MICROOS_QUEUE_MSG_SIZE`.
+
+Queue object:
+
+```c
+typedef struct
+{
+    MicroOSQueue_Message_t buffer[MICROOS_QUEUE_DEPTH];
+
+    uint16_t head;
+    uint16_t tail;
+
+} MicroOSQueue_Obj_t;
+```
+
+Where:
+
+* `buffer` – Message storage buffer.
+* `head` – Message read position.
+* `tail` – Message write position.
+
+### **Queue Usage Example**
+
+```c
+MicroOSQueue_Obj_t queue;
+
+
+/* Initialize queue */
+MicroOSQueue_Init(&queue);
+
+
+/* Write message */
+uint8_t tx_data[8] = {
+    0x11,
+    0x22,
+    0x33,
+    0x44,
+    0x55,
+    0x66,
+    0x77,
+    0x88
+};
+
+MicroOSQueue_Push(&queue,
+                  tx_data,
+                  sizeof(tx_data));
+
+
+/* Read message */
+uint8_t rx_data[8];
+size_t len = sizeof(rx_data);
+
+if(MicroOSQueue_Pop(&queue,
+                    rx_data,
+                    &len) == MICROOS_OK)
+{
+    // User processes received data
+}
+```
+
+### **Queue Workflow**
+
+```txt
+              Push()
+                |
+                |
+                v
+
+        +----------------+
+        | Queue Buffer   |
+        |                |
+        |  Message 0     |
+        |  Message 1     |
+        |  Message 2     |
+        |       ...      |
+        +----------------+
+
+                |
+                |
+              Pop()
+
+                |
+                v
+
+          User Process
+```
+
+### **Design Features**
+
+The Queue module uses static memory management and does not use `malloc/free`, making it suitable for resource-constrained embedded systems.
+
+Main features:
+
+* Supports fixed-length message storage.
+* No dynamic memory allocation, avoiding memory fragmentation.
+* Data is automatically copied during writing, and the message lifetime is managed by the queue.
+* Supports the producer-consumer model.
+* Can be used for inter-task communication, event buffering, protocol data buffering, and other scenarios.
+
+Typical applications:
+
+* UART / CAN receive buffer.
+* Message Event message storage.
+* Asynchronous communication between tasks.
+* Interrupt data buffering.
 
 ---
 
@@ -383,7 +687,7 @@ MicroOS_TriggerMessageEvent(1, &sample, sizeof(sample));
 * Task priority is implicit via ID and period.
 * OSdelay callbacks run from within `MicroOS_StartScheduler()`'s main loop; a long-running task, event, or message event handler will delay other callbacks in the same iteration.
 * **Event** has no per-trigger payload and no queuing: the `Userdata` bound at `MicroOS_RegisterEvent()` is shared by every trigger. Triggering it rapidly does not lose "events" (the callback still runs once per trigger), but it cannot deliver distinct data per trigger — use a **Message Event** if that's required.
-* **Message Event** payload size is capped by `MICROOS_QUEUE_MSG_SIZE`; larger payloads are rejected. Each event's queue depth is capped by `MICROOS_QUEUE_DEPTH`; triggering faster than the scheduler can dispatch, beyond that depth, returns an error rather than silently overwriting data.
+* **Message Event** payload size is capped by `MICROOS_QUEUE_SINGLE_MSG_SIZE`; larger payloads are rejected. Each event's queue depth is capped by `MICROOS_QUEUE_DEPTH`; triggering faster than the scheduler can dispatch, beyond that depth, returns an error rather than silently overwriting data.
 * Event pool size is fixed at compile-time (`OS_EVENT_POOLSIZE`).
 * Message event pool size is fixed at compile-time (`MICROOS_MESSAGEEVENT_SIZE`), and can be compiled out entirely via `MICROOS_MESSAGEEVENT_ENABLE`.
 * Task table and delay pool sizes are fixed at compile-time (`MICROOS_TASK_SIZE`, `OS_DELAY_POOLSIZE`).
