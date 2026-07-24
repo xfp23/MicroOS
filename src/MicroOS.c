@@ -110,7 +110,7 @@ void MicroOS_StartScheduler(void)
             {
                 MicroOS_Task_Handle->CurrentTaskId = i;
                 t->TaskFunction(t->Userdata);
-                t->LastRunTime = currentTime;
+                t->LastRunTime += t->Tick;
             }
         }
     }
