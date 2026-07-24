@@ -120,7 +120,7 @@ void MicroOS_TickHandler(void)
     MicroOS_OSdelay_Tick();
 }
 
-uint32_t MicroOS_GetTick()
+uint32_t MicroOS_GetTick(void)
 {
     return MicroOS_Task_Handle->TickCount;
 }
@@ -257,7 +257,7 @@ MicroOS_Status_t MicroOS_WakeupTask(uint8_t id)
 static void MicroOS_OSdelay_Init(void)
 {
     // 初始化任务池
-    for (int i = 0; i < MICROOS_OSDELAY_POOL_SIZE - 1; i++)
+    for (unsigned int i = 0; i < MICROOS_OSDELAY_POOL_SIZE - 1; i++)
     {
         OSdelay.delay_pool[i].next = &OSdelay.delay_pool[i + 1];
     }
@@ -862,7 +862,7 @@ bool MicroOS_IsSubscriptionSuspended(uint8_t topic_id, uint8_t sub_id)
 
 static void MicroOS_TopicDispatch(void)
 {
-    for(int i = 0; i < MICROOS_TOPIC_SIZE; i++)
+    for(unsigned int i = 0; i < MICROOS_TOPIC_SIZE; i++)
     {
         if(!OSPubSub.topics[i].IsUsed || !OSPubSub.topics[i].IsRunning)
         {
@@ -874,7 +874,7 @@ static void MicroOS_TopicDispatch(void)
             continue;
         }
 
-        for(int j = 0; j < MICROOS_SUBSCRIBER_NUM; j++)
+        for(unsigned int j = 0; j < MICROOS_SUBSCRIBER_NUM; j++)
         {
             if(!OSPubSub.topics[i].subscribers[j].IsRunning || !OSPubSub.topics[i].subscribers[j].IsUsed)
             {
