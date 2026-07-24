@@ -29,8 +29,6 @@ static void MicroOS_OSEvent_Init(void);
 
 static void MicroOS_DispatchAllEvents(void);
 
-static void MicroOS_OSdelay_Remove(uint8_t id);
-
 static void MicroOS_OSdelay_StartScheduler(void);
 
 #if MICROOS_MESSAGEEVENT_ENABLE
@@ -329,7 +327,7 @@ static void MicroOS_OSdelay_Tick(void)
     }
 }
 
-static void MicroOS_OSdelay_Remove(uint8_t id)
+void MicroOS_OSdelay_Remove(uint8_t id)
 {
     MicroOS_OSdelay_Sub_t **pp = &OSdelay.active_delay;
     while (*pp)

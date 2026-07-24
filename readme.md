@@ -239,6 +239,7 @@ MicroOS_Status_t MicroOS_OSdelay(uint8_t id,
 
 * `MicroOS_delay()` – **Blocking** delay; busy-waits until the given number of ticks has elapsed. Blocks the entire scheduler, so use sparingly.
 * `MicroOS_OSdelay()` – **Non-blocking**, callback-based delay. Registers (or re-arms, if `id` already exists) a delay of `Ticks`. When the delay expires, the scheduler automatically calls `OSdelayFunction(Userdata)` from within `MicroOS_StartScheduler()`'s main loop, and the pool entry is freed automatically afterward — no manual "done" check or manual removal is required.
+* `MicroOS_OSdelay_Remove()` - Removes or cancels a delay early.
 
 ---
 
@@ -648,22 +649,46 @@ void Sensor_Task(void *param) {
 }
 ```
 
-### **5.4 Delay Example**
+### **5.4 OSdelay Example**
+
+`MicroOS_OSdelay()` registers a one-shot delayed task. When the specified delay expires, MicroOS automatically invokes the corresponding callback function. No polling or blocking delay is required.
+
+If the delayed task needs to be canceled before expiration, call `MicroOS_OSdelay_Remove()`.
 
 ```c
-void Comm_DelayHandler(void *userdata) {
-    // Runs automatically once the delay expires — no polling needed
-    // Do work after delay here
+void Comm_DelayHandler(void *userdata)
+{
+    // Automatically executed after 200 ms
+    // Handle the delayed operation here
 }
 
-void Comm_Task(void *param) {
+void Comm_Task(void *param)
+{
     static bool started = false;
-    if (!started) {
-        MicroOS_OSdelay(1, Comm_DelayHandler, NULL, OS_MS_TICKS(200)); // 200ms delay
+
+    if (!started)
+    {
+        // Register a one-shot delay of 200 ms
+        MicroOS_OSdelay(1,
+                        Comm_DelayHandler,
+                        NULL,
+                        OS_MS_TICKS(200));
+
         started = true;
     }
+
+    // Other task logic...
 }
 ```
+
+To cancel the delayed task before it expires:
+
+```c
+// Cancel the delayed task with ID 1
+MicroOS_OSdelay_Remove(1);
+```
+
+`MicroOS_OSdelay()` provides a **non-blocking** delay mechanism. It does not occupy the CPU while waiting and does not block the current task. The callback function is executed only once when the delay expires. To schedule another delay, call `MicroOS_OSdelay()` again.
 
 ### **5.5 Event vs. Message Event — choosing between them**
 

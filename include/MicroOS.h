@@ -90,13 +90,20 @@ extern MicroOS_Status_t MicroOS_delay(uint32_t Ticks);
 
 /**
  * @brief Set a delay for a task (OSdelay)
- * @param id Task ID
+ * @param id OSdelay ID
  * @param OSdelayFunction  Delayed callback function
  * @param Userdata Data pointer provided by the user
  * @param Ticks Delay Ticks num  OS_MS_TICKS(ms)
  * @return MicroOS_Status_t Status code
  */
 extern MicroOS_Status_t MicroOS_OSdelay(uint8_t id, MicroOS_OSdelayFunction_t OSdelayFunction, const void *Userdata, uint32_t Ticks);
+
+/**
+ * @brief Remove or cancel a scheduled delay in advance.
+ *
+ * @param id OSdelay ID
+ */
+extern void MicroOS_OSdelay_Remove(uint8_t id);
 
 /**
  * @brief Add a task to the scheduler
