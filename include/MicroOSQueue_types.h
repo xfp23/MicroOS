@@ -42,7 +42,7 @@ typedef struct
 
     volatile uint32_t tail;
     volatile uint32_t head;
-
+    volatile uint32_t size;
 } MicroOSQueue_Obj_t;
 
 #ifdef __cplusplus

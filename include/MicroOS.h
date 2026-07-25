@@ -225,6 +225,14 @@ extern MicroOS_Status_t MicroOS_SuspendMessageEvent(uint8_t id);
  * @return MicroOS_Status_t
  */
 extern MicroOS_Status_t MicroOS_ResumeMessageEvent(uint8_t id);
+
+/**
+ * @brief Get the Message Event Size for ID
+ * 
+ * @param id Message Event ID
+ * @return uint32_t 
+ */
+extern uint32_t MicroOS_GetSizeMessageEvent(uint8_t id);
 #endif
 
 #if MICROOS_SUBSCRIPTION_ENABLE

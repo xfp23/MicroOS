@@ -571,15 +571,16 @@ MicroOS_Status_t MicroOS_TriggerMessageEvent(uint8_t id, const void *data, size_
         return MICROOS_ERROR;
     }
 
-    if (OSMessageEvent.Event[id].IsUsed && OSMessageEvent.Event[id].IsRunning)
+    if (!(OSMessageEvent.Event[id].IsUsed && OSMessageEvent.Event[id].IsRunning))
     {
+        return MICROOS_BUSY;
+    }
 
-        MicroOS_Status_t ret = MicroOSQueue_Push(&OSMessageEvent.Event[id].queue, data, data_len);
+    MicroOS_Status_t ret = MicroOSQueue_Push(&OSMessageEvent.Event[id].queue, data, data_len);
 
-        if (ret != MICROOS_OK)
-        {
-            return ret;
-        }
+    if (ret != MICROOS_OK)
+    {
+        return ret;
     }
 
     return MICROOS_OK;
@@ -607,6 +608,16 @@ MicroOS_Status_t MicroOS_ResumeMessageEvent(uint8_t id)
     OSMessageEvent.Event[id].IsRunning = true;
 
     return MICROOS_OK;
+}
+
+uint32_t MicroOS_GetSizeMessageEvent(uint8_t id)
+{
+    if (id >= MICROOS_MESSAGEEVENT_SIZE)
+    {
+        return MICROOS_ERROR;
+    }
+
+    return OSMessageEvent.Event[id].queue.size;
 }
 
 static void MicroOS_MessageEventDispatch(void)

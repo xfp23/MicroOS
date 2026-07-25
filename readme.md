@@ -49,7 +49,7 @@ All configuration macros live in `MicroOS_conf.h`.
  *============================================================================*/
 
 /** MicroOS version */
-#define MICROOS_VERSION_MAJOR                 "2.0.1"
+#define MICROOS_VERSION_MAJOR                 "2.0.2"
 
 
 /*==============================================================================
@@ -479,6 +479,8 @@ MicroOS_Status_t MicroOSQueue_Reset(MicroOSQueue_Obj_t *obj);
 
 * `MicroOSQueue_Reset` – Reset the queue. Clears all messages in the queue and restores the queue to its initial state. This operation does not release any memory.
 
+* `MicroOSQueue_Size` - Get the amount of remaining space in the queue.
+
 ### **Queue Data Structure**
 
 The queue internally uses a static array for storage:
@@ -487,7 +489,7 @@ The queue internally uses a static array for storage:
 typedef struct
 {
     uint16_t len;
-    uint8_t  data[MICROOS_QUEUE_MSG_SIZE];
+    uint8_t  data[MICROOS_QUEUE_SINGLE_MSG_SIZE];
 
 } MicroOSQueue_Message_t;
 ```
@@ -495,7 +497,7 @@ typedef struct
 Where:
 
 * `len` – Indicates the length of the current message data.
-* `data` – Used to store message content. The maximum length is configured by `MICROOS_QUEUE_MSG_SIZE`.
+* `data` – Used to store message content. The maximum length is configured by `MICROOS_QUEUE_SINGLE_MSG_SIZE`.
 
 Queue object:
 

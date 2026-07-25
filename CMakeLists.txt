@@ -1,4 +1,6 @@
-project(MicroOS C)
+cmake_minimum_required(VERSION 3.20)
+
+project(MicroOS)
 
 file(GLOB_RECURSE MicroOS_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"

@@ -49,7 +49,7 @@
  *============================================================================*/
 
 /** MicroOS 版本 */
-#define MICROOS_VERSION_MAJOR                 "2.0.1"
+#define MICROOS_VERSION_MAJOR                 "2.0.2"
 
 
 /*==============================================================================
@@ -480,6 +480,8 @@ MicroOS_Status_t MicroOSQueue_Reset(MicroOSQueue_Obj_t *obj);
 
 * `MicroOSQueue_Reset` – 重置队列。清空队列中的所有消息，并恢复队列初始状态。该操作不会释放任何内存。
 
+* `MicroOSQueue_Size` - 获取队列剩余空间大小。
+
 ### **队列数据结构**
 
 队列内部采用静态数组进行存储：
@@ -488,7 +490,7 @@ MicroOS_Status_t MicroOSQueue_Reset(MicroOSQueue_Obj_t *obj);
 typedef struct
 {
     uint16_t len;
-    uint8_t  data[MICROOS_QUEUE_MSG_SIZE];
+    uint8_t  data[MICROOS_QUEUE_SINGLE_MSG_SIZE];
 
 } MicroOSQueue_Message_t;
 ```
@@ -496,7 +498,7 @@ typedef struct
 其中：
 
 * `len` – 表示当前消息的数据长度。
-* `data` – 用于存储消息内容，最大长度由 `MICROOS_QUEUE_MSG_SIZE` 配置。
+* `data` – 用于存储消息内容，最大长度由 `MICROOS_QUEUE_SINGLE_MSG_SIZE` 配置。
 
 队列对象：
 
