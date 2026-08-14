@@ -280,12 +280,11 @@ MicroOS_Status_t MicroOS_OSdelay(uint8_t id, MicroOS_OSdelayFunction_t OSdelayFu
     {
         if (p->id == id)
         {
-            p->tick = Ticks;
-            p->IsTimeout = false;
-            p->OSdelayFunction = OSdelayFunction;
-            p->Userdata = (void *)Userdata;
-            return MICROOS_OK;
-            ;
+            // p->tick = Ticks;
+            // p->IsTimeout = false;
+            // p->OSdelayFunction = OSdelayFunction;
+            // p->Userdata = (void *)Userdata;
+            return MICROOS_ALREADY_EXIST;
         }
         p = p->next;
     }

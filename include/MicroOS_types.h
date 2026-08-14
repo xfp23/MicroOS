@@ -60,6 +60,7 @@ typedef enum
     MICROOS_BUSY,            /**< MicroOS is busy */
     MICROOS_QUEUE_FULL,
     MICROOS_QUEUE_EMPTY,
+    MICROOS_ALREADY_EXIST,
 } MicroOS_Status_t;
 
 /**
