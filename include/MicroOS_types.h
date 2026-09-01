@@ -69,8 +69,8 @@ typedef enum
 typedef struct
 {
     bool IsUsed;                  // Indicates if the task is currently in use
-    bool IsRunning;               // Indicates if the task is currently running
-    bool IsSleeping;              // Indicates if the task is currently sleeping
+    volatile bool IsRunning;               // Indicates if the task is currently running
+    volatile bool IsSleeping;              // Indicates if the task is currently sleeping
     char *name;                   // Task name
     uint32_t SleepTicks;          // Number of ticks the task is sleeping
     uint32_t Tick;                // Task period in milliseconds
@@ -122,7 +122,7 @@ typedef struct MicroOS_Event_Sub_t
 {
     uint8_t id;                     // event unique id
     char *name;                     // event name
-    bool IsRunning;                 // Whether to run
+    volatile bool IsRunning;                 // Whether to run
     bool IsUsed;                    // Whether to used
     volatile bool Triggered;     // riggers
     void (*EventFunction)(void* data);
@@ -143,7 +143,7 @@ typedef struct
 typedef struct {
     // (O1)查找,数组索引就是ID，因为消息需要memecpy就已经很重了，如果再加个O(n),会浪费cpu
     bool IsUsed;                  // Indicates if the task is currently in use
-    bool IsRunning;               // Indicates if the task is currently running
+    volatile bool IsRunning;               // Indicates if the task is currently running
     char *name;                   // Task name
     void (*MessageEventFunction)(const MicroOSQueue_Message_t *);
     MicroOSQueue_Message_t Userdata;               // Pointer to user data
@@ -162,14 +162,14 @@ typedef struct
 {
     char *name;
     bool IsUsed;
-    bool IsRunning;
+    volatile bool IsRunning;
     MicroOS_SubscriberFunction_t callback;
 } MicroOS_Subscriber_t; // 订阅者
  
 typedef struct
 {
     bool IsUsed;
-    bool IsRunning;
+    volatile bool IsRunning;
     volatile bool IsPending;
  
     char *name;              
