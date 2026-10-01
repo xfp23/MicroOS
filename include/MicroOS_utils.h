@@ -1,5 +1,5 @@
-#ifndef MICROOS_COM_H
-#define MICROOS_COM_H
+#ifndef MICROOS_UTILS_H
+#define MICROOS_UTILS_H
 
 /**
  * @file MicroOS_types.h
@@ -53,6 +53,24 @@ extern "C"
             return MICROOS_INVALID_PARAM; \
         }                                 \
     } while (0)
+
+#define MICROOS_CHECK_OSTIMER_ID(id)      \
+    do                                    \
+    {                                     \
+        if (id >= MICROOS_OSTIMER_SIZE)   \
+        {                                 \
+            return MICROOS_INVALID_PARAM; \
+        }                                 \
+    } while (0)
+
+#define MICROOS_CHECK_OSTIMER_VALID(id)   \
+    do                                    \
+    {                                     \
+        if (!OSTimer.timer[id].is_valid) \
+        {                                 \
+            return MICROOS_BUSY;          \
+        }                                 \
+    } while(0)
 
 #ifdef __cplusplus
 }

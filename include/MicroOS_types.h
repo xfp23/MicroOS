@@ -47,6 +47,8 @@ typedef void (*MicroOS_OSdelayFunction_t)(void *Userdata);
 typedef void (*MicroOSQueue_EventFunction_t)(const MicroOSQueue_Message_t* QueueMsg);
 
 typedef void (*MicroOS_SubscriberFunction_t)(void *Userdata);
+
+typedef void (*MicroOS_TimerFunction_t)(void*);
 /**
  * @brief MicroOS status codes
  */
@@ -183,6 +185,25 @@ typedef struct
     MicroOS_Topic_t topics[MICROOS_TOPIC_SIZE];
     uint8_t TopicCount;                          
 } MicroOS_PubSub_t; // 发布订阅管理对象
+
+typedef struct 
+{
+    volatile uint32_t tick; 
+    uint32_t period; // 周期
+    MicroOS_TimerFunction_t callback;
+
+    void* userData;
+
+    bool is_auto_reload;
+    bool is_start;
+    bool is_valid; // valid
+} MicroOS_Timer_t; // 定时器
+
+typedef struct 
+{
+    MicroOS_Timer_t timer[MICROOS_OSTIMER_SIZE];
+    uint32_t timer_num;
+} MicroOS_OSTimer_t;
 
 #ifdef __cplusplus
 }

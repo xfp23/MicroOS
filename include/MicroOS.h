@@ -23,7 +23,7 @@
 
 #include "MicroOS_types.h"
 #include "MicroOSQueue.h"
-#include "MicroOS_com.h"
+#include "MicroOS_utils.h"
 #include "MicroOS_conf.h"
 
 #ifdef __cplusplus
@@ -351,6 +351,90 @@ extern bool MicroOS_IsTopicSuspended(uint8_t topic_id);
  */
 extern bool MicroOS_IsSubscriptionSuspended(uint8_t topic_id, uint8_t sub_id);
 #endif
+
+/**
+ * @brief Create (configure) an OS timer. The timer is NOT started automatically;
+ *        call MicroOS_OSTimer_Start() to run it.
+ *
+ * @note  The callback is executed from the hardware timer ISR context, so it must be
+ *        short and non-blocking (no delays, no blocking mutexes, no printf-style calls).
+ * @note  Calling Create on an ID that is already in use overwrites its configuration.
+ *        Stop or Delete the timer first to avoid undefined behavior.
+ *
+ * @param id             Timer ID, must be less than MICROOS_OSTIMER_SIZE.
+ * @param timerFunction  Callback invoked when the timer expires. Must not be NULL.
+ * @param period         Timer period in OS timer ticks (the tick length is determined by
+ *                       the hardware timer that drives the dispatcher). Must be > 0.
+ *                       The macro `OS_MS_TICK` from `MicroOS_untils.h` is recommended.
+ * @param is_auto_reload true  - periodic mode: the timer restarts automatically after each expiry.
+ *                       false - one-shot mode: the timer stops after the first expiry.
+ * @param args           User argument passed to the callback on each expiry. May be NULL.
+ *
+ * @return MicroOS_Status_t
+ * @retval MICROOS_OK             Timer created successfully.
+ * @retval MICROOS_INVALID_PARAM  period is 0.
+ * @retval Other error codes      Invalid ID or NULL callback (as reported by the check macros).
+ */
+extern MicroOS_Status_t MicroOS_OSTimer_Create(uint8_t id, MicroOS_TimerFunction_t timerFunction, uint32_t period, bool is_auto_reload, void *args);
+
+/**
+ * @brief Delete an OS timer. The timer is stopped and its configuration (callback,
+ *        period, arguments, flags) is cleared. The ID can be reused by MicroOS_OSTimer_Create().
+ *
+ * @note  Deleting a timer that was never created, or was already deleted, is harmless
+ *        (idempotent) and returns MICROOS_OK.
+ *
+ * @param id  Timer ID, must be less than MICROOS_OSTIMER_SIZE.
+ *
+ * @return MicroOS_Status_t
+ * @retval MICROOS_OK         Timer deleted successfully.
+ * @retval Other error codes  Invalid ID.
+ */
+MicroOS_Status_t MicroOS_OSTimer_Delete(uint8_t id);
+
+/**
+ * @brief Start an OS timer. The tick counter is reset to 0, so counting always begins
+ *        from a full period.
+ *
+ * @note  If the timer is already running, it is restarted from zero.
+ * @note  The timer must have been created with MicroOS_OSTimer_Create() first.
+ *
+ * @param id  Timer ID, must be less than MICROOS_OSTIMER_SIZE.
+ *
+ * @return MicroOS_Status_t
+ * @retval MICROOS_OK         Timer started successfully.
+ * @retval Other error codes  Invalid ID, or the timer has not been created.
+ */
+MicroOS_Status_t MicroOS_OSTimer_Start(uint8_t id);
+
+/**
+ * @brief Stop an OS timer and reset its tick counter to 0. The timer remains created and
+ *        can be started again with MicroOS_OSTimer_Start() without calling Create again.
+ *
+ * @note  The elapsed time is discarded; a later Start begins from a full period (no pause/resume).
+ *
+ * @param id  Timer ID, must be less than MICROOS_OSTIMER_SIZE.
+ *
+ * @return MicroOS_Status_t
+ * @retval MICROOS_OK         Timer stopped successfully.
+ * @retval Other error codes  Invalid ID, or the timer has not been created.
+ */
+MicroOS_Status_t MicroOS_OSTimer_Stop(uint8_t id);
+
+/**
+ * @brief Manually reload an OS timer by resetting its tick counter to 0, restarting the
+ *        current period without changing the running state. Typically used as a
+ *        "watchdog-style" feed to postpone expiry.
+ *
+ * @note  This does not start a stopped timer; use MicroOS_OSTimer_Start() for that.
+ *
+ * @param id  Timer ID, must be less than MICROOS_OSTIMER_SIZE.
+ *
+ * @return MicroOS_Status_t
+ * @retval MICROOS_OK         Tick counter reset successfully.
+ * @retval Other error codes  Invalid ID.
+ */
+MicroOS_Status_t MicroOS_OSTimer_Reload(uint8_t id);
 
 #ifdef __cplusplus
 }

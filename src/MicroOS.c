@@ -4,24 +4,30 @@
  * @brief MicroOS Source file
  * @version 2.0.1
  * @date 2026-07-24
- * 
+ *
  * @copyright Copyright (c) 2026
- * 
+ *
  */
 
 #include "MicroOS.h"
 #include "stdlib.h"
 #include "string.h"
 
-static MicroOS_Task_t MicroOS = {0}; // 任务对象
+static MicroOS_Task_t OSTask = {0}; // 任务对象
 
-static MicroOS_Task_Handle_t const MicroOS_Task_Handle = &MicroOS;
+static MicroOS_Task_Handle_t const MicroOS_Task_Handle = &OSTask;
+
+static MicroOS_OSTimer_t OSTimer = {0};
 
 static MicroOS_OSdelay_t OSdelay = {0}; // delay对象
 
+static void MicroOS_OSTimer_Init(void);
+
+static void MicroOS_OSTimer_Dispatch(void);
+
 static void MicroOS_OSdelay_Init(void);
 
-static void MicroOS_OSdelay_Tick(void);
+static void MicroOS_OSdelay_TickHandler(void);
 
 static MicroOS_Event_t OSEvent = {0}; // 事件对象
 
@@ -57,6 +63,7 @@ MicroOS_Status_t MicroOS_Init()
     MicroOS_Task_Handle->TaskNum = 0;
     MicroOS_Task_Handle->TickCount = 0;
     MicroOS_Task_Handle->CurrentTaskId = 0;
+    MicroOS_OSTimer_Init();
     MicroOS_OSdelay_Init();
     MicroOS_OSEvent_Init();
 #if MICROOS_SUBSCRIPTION_ENABLE
@@ -118,7 +125,8 @@ void MicroOS_TickHandler(void)
 {
 
     MicroOS_Task_Handle->TickCount++;
-    MicroOS_OSdelay_Tick();
+    MicroOS_OSTimer_Dispatch();
+    MicroOS_OSdelay_TickHandler();
 }
 
 uint32_t MicroOS_GetTick(void)
@@ -280,10 +288,6 @@ MicroOS_Status_t MicroOS_OSdelay(uint8_t id, MicroOS_OSdelayFunction_t OSdelayFu
     {
         if (p->id == id)
         {
-            // p->tick = Ticks;
-            // p->IsTimeout = false;
-            // p->OSdelayFunction = OSdelayFunction;
-            // p->Userdata = (void *)Userdata;
             return MICROOS_ALREADY_EXIST;
         }
         p = p->next;
@@ -309,7 +313,7 @@ MicroOS_Status_t MicroOS_OSdelay(uint8_t id, MicroOS_OSdelayFunction_t OSdelayFu
 }
 
 // Tick 处理
-static void MicroOS_OSdelay_Tick(void)
+static void MicroOS_OSdelay_TickHandler(void)
 {
     MicroOS_OSdelay_Sub_t *p = OSdelay.active_delay;
     while (p)
@@ -655,24 +659,24 @@ static void MicroOS_PubSub_Init(void)
 {
     memset(&OSPubSub, 0, sizeof(MicroOS_PubSub_t));
 }
- 
+
 MicroOS_Status_t MicroOS_CreateTopic(uint8_t id, const char *topic)
 {
     if (id >= MICROOS_TOPIC_SIZE)
     {
         return MICROOS_INVALID_PARAM;
     }
- 
+
     if (OSPubSub.topics[id].IsUsed)
     {
         return MICROOS_BUSY;
     }
- 
+
     if (OSPubSub.TopicCount >= MICROOS_TOPIC_SIZE)
     {
         return MICROOS_BUSY;
     }
- 
+
     OSPubSub.TopicCount++;
     OSPubSub.topics[id].IsUsed = true;
     OSPubSub.topics[id].name = (char *)topic;
@@ -680,17 +684,17 @@ MicroOS_Status_t MicroOS_CreateTopic(uint8_t id, const char *topic)
     OSPubSub.topics[id].Userdata = NULL;
     OSPubSub.topics[id].IsRunning = true;
     OSPubSub.topics[id].IsPending = false;
- 
+
     return MICROOS_OK;
 }
- 
+
 MicroOS_Status_t MicroOS_DeleteTopic(uint8_t id)
 {
     if (id >= MICROOS_TOPIC_SIZE)
     {
         return MICROOS_INVALID_PARAM;
     }
- 
+
     if (OSPubSub.topics[id].IsUsed)
     {
         OSPubSub.TopicCount--;
@@ -701,10 +705,10 @@ MicroOS_Status_t MicroOS_DeleteTopic(uint8_t id)
         OSPubSub.topics[id].IsRunning = false;
         OSPubSub.topics[id].IsPending = false;
     }
- 
+
     return MICROOS_OK;
 }
- 
+
 // 订阅一个主题
 MicroOS_Status_t MicroOS_Subscribe(uint8_t topic_id, uint8_t sub_id, const char *name, MicroOS_SubscriberFunction_t func)
 {
@@ -712,133 +716,133 @@ MicroOS_Status_t MicroOS_Subscribe(uint8_t topic_id, uint8_t sub_id, const char 
     {
         return MICROOS_INVALID_PARAM;
     }
- 
+
     if (!OSPubSub.topics[topic_id].IsUsed)
     {
         return MICROOS_ERROR;
     }
- 
+
     if (OSPubSub.topics[topic_id].subscribers[sub_id].IsUsed)
     {
         return MICROOS_BUSY;
     }
- 
+
     OSPubSub.topics[topic_id].subscribers[sub_id].IsUsed = true;
     OSPubSub.topics[topic_id].subscribers[sub_id].IsRunning = true;
     OSPubSub.topics[topic_id].subscribers[sub_id].name = (char *)name;
     OSPubSub.topics[topic_id].subscribers[sub_id].callback = func;
- 
+
     return MICROOS_OK;
 }
- 
+
 MicroOS_Status_t MicroOS_Unsubscribe(uint8_t topic_id, uint8_t sub_id)
 {
     if (topic_id >= MICROOS_TOPIC_SIZE || sub_id >= MICROOS_SUBSCRIBER_NUM)
     {
         return MICROOS_INVALID_PARAM;
     }
- 
+
     if (!OSPubSub.topics[topic_id].IsUsed)
     {
         return MICROOS_ERROR;
     }
- 
+
     if (!OSPubSub.topics[topic_id].subscribers[sub_id].IsUsed)
     {
         return MICROOS_ERROR;
     }
- 
+
     memset(&OSPubSub.topics[topic_id].subscribers[sub_id], 0, sizeof(MicroOS_Subscriber_t));
- 
+
     return MICROOS_OK;
 }
- 
+
 MicroOS_Status_t MicroOS_Publish(uint8_t topic_id, const void *Userdata)
 {
     if (topic_id >= MICROOS_TOPIC_SIZE)
     {
         return MICROOS_INVALID_PARAM;
     }
- 
+
     if (!OSPubSub.topics[topic_id].IsUsed)
     {
         return MICROOS_ERROR;
     }
- 
+
     if (!OSPubSub.topics[topic_id].IsRunning)
     {
         return MICROOS_BUSY;
     }
- 
+
     OSPubSub.topics[topic_id].IsPending = true;
     OSPubSub.topics[topic_id].Userdata = (void *)Userdata;
- 
+
     return MICROOS_OK;
 }
- 
+
 MicroOS_Status_t MicroOS_SuspendSubscription(uint8_t topic_id, uint8_t sub_id)
 {
     if (topic_id >= MICROOS_TOPIC_SIZE || sub_id >= MICROOS_SUBSCRIBER_NUM)
     {
         return MICROOS_INVALID_PARAM;
     }
- 
+
     if (!OSPubSub.topics[topic_id].IsUsed)
     {
         return MICROOS_ERROR;
     }
- 
+
     OSPubSub.topics[topic_id].subscribers[sub_id].IsRunning = false;
- 
+
     return MICROOS_OK;
 }
- 
+
 MicroOS_Status_t MicroOS_ResumeSubscription(uint8_t topic_id, uint8_t sub_id)
 {
     if (topic_id >= MICROOS_TOPIC_SIZE || sub_id >= MICROOS_SUBSCRIBER_NUM)
     {
         return MICROOS_INVALID_PARAM;
     }
- 
+
     if (!OSPubSub.topics[topic_id].IsUsed)
     {
         return MICROOS_ERROR;
     }
- 
+
     OSPubSub.topics[topic_id].subscribers[sub_id].IsRunning = true;
- 
+
     return MICROOS_OK;
 }
- 
+
 MicroOS_Status_t MicroOS_ClearSubscriptions(uint8_t topic_id)
 {
     if (topic_id >= MICROOS_TOPIC_SIZE)
     {
         return MICROOS_INVALID_PARAM;
     }
- 
+
     if (!OSPubSub.topics[topic_id].IsUsed)
     {
         return MICROOS_ERROR;
     }
- 
+
     memset(OSPubSub.topics[topic_id].subscribers, 0, sizeof(OSPubSub.topics[topic_id].subscribers));
- 
+
     return MICROOS_OK;
 }
- 
-uint8_t MicroOS_SubscriberCount(uint8_t topic_id) 
+
+uint8_t MicroOS_SubscriberCount(uint8_t topic_id)
 {
     if (topic_id >= MICROOS_TOPIC_SIZE)
     {
         return 0;
     }
- 
+
     if (!OSPubSub.topics[topic_id].IsUsed)
     {
         return 0;
     }
- 
+
     uint8_t count = 0;
     for (uint8_t i = 0; i < MICROOS_SUBSCRIBER_NUM; i++)
     {
@@ -847,7 +851,7 @@ uint8_t MicroOS_SubscriberCount(uint8_t topic_id)
             count++;
         }
     }
- 
+
     return count;
 }
 
@@ -857,44 +861,44 @@ bool MicroOS_IsTopicSuspended(uint8_t topic_id)
     {
         return false;
     }
- 
+
     return OSPubSub.topics[topic_id].IsRunning == false;
 }
- 
+
 bool MicroOS_IsSubscriptionSuspended(uint8_t topic_id, uint8_t sub_id)
 {
     if (topic_id >= MICROOS_TOPIC_SIZE || sub_id >= MICROOS_SUBSCRIBER_NUM)
     {
         return false;
     }
- 
+
     return OSPubSub.topics[topic_id].subscribers[sub_id].IsRunning == false;
 }
 
 static void MicroOS_TopicDispatch(void)
 {
-    for(unsigned int i = 0; i < MICROOS_TOPIC_SIZE; i++)
+    for (unsigned int i = 0; i < MICROOS_TOPIC_SIZE; i++)
     {
-        if(!OSPubSub.topics[i].IsUsed || !OSPubSub.topics[i].IsRunning)
+        if (!OSPubSub.topics[i].IsUsed || !OSPubSub.topics[i].IsRunning)
         {
             continue;
         }
 
-        if(!OSPubSub.topics[i].IsPending)
+        if (!OSPubSub.topics[i].IsPending)
         {
             continue;
         }
 
-        for(unsigned int j = 0; j < MICROOS_SUBSCRIBER_NUM; j++)
+        for (unsigned int j = 0; j < MICROOS_SUBSCRIBER_NUM; j++)
         {
-            if(!OSPubSub.topics[i].subscribers[j].IsRunning || !OSPubSub.topics[i].subscribers[j].IsUsed)
+            if (!OSPubSub.topics[i].subscribers[j].IsRunning || !OSPubSub.topics[i].subscribers[j].IsUsed)
             {
                 continue;
             }
 
-            if(OSPubSub.topics[i].subscribers[j].callback)
+            if (OSPubSub.topics[i].subscribers[j].callback)
             {
-                OSPubSub.topics[i].subscribers[j].callback((void*)OSPubSub.topics[i].Userdata);
+                OSPubSub.topics[i].subscribers[j].callback((void *)OSPubSub.topics[i].Userdata);
             }
         }
 
@@ -902,3 +906,102 @@ static void MicroOS_TopicDispatch(void)
     }
 }
 #endif
+
+static void MicroOS_OSTimer_Init(void)
+{
+    memset(&OSTimer, 0, sizeof(MicroOS_OSTimer_t));
+}
+
+MicroOS_Status_t MicroOS_OSTimer_Start(uint8_t id)
+{
+    MICROOS_CHECK_OSTIMER_ID(id);
+    MICROOS_CHECK_OSTIMER_VALID(id);
+
+    OSTimer.timer[id].is_start = true;
+    OSTimer.timer[id].tick = 0;
+
+    return MICROOS_OK;
+}
+
+MicroOS_Status_t MicroOS_OSTimer_Stop(uint8_t id)
+{
+    MICROOS_CHECK_OSTIMER_ID(id);
+    MICROOS_CHECK_OSTIMER_VALID(id);
+
+    OSTimer.timer[id].is_start = false;
+    OSTimer.timer[id].tick = 0;
+
+    return MICROOS_OK;
+}
+
+MicroOS_Status_t MicroOS_OSTimer_Create(uint8_t id, MicroOS_TimerFunction_t timerFunction, uint32_t period, bool is_auto_reload, void *args)
+{
+    MICROOS_CHECK_OSTIMER_ID(id);
+    MICROOS_CHECK_PTR(timerFunction);
+
+    if (OSTimer.timer->is_valid)
+    {
+        return MICROOS_ALREADY_EXIST;
+    }
+
+    if (period == 0)
+    {
+        return MICROOS_INVALID_PARAM; // 周期不能为0
+    }
+
+    OSTimer.timer[id].callback = timerFunction;
+    OSTimer.timer[id].tick = 0;
+    OSTimer.timer[id].is_start = false;
+    OSTimer.timer[id].period = period;
+    OSTimer.timer[id].is_valid = true;
+    OSTimer.timer[id].is_auto_reload = is_auto_reload;
+    OSTimer.timer[id].userData = args;
+    OSTimer.timer_num++;
+
+    return MICROOS_OK;
+}
+
+MicroOS_Status_t MicroOS_OSTimer_Delete(uint8_t id)
+{
+    MICROOS_CHECK_OSTIMER_ID(id);
+    MICROOS_CHECK_OSTIMER_VALID(id);
+
+    OSTimer.timer[id].is_start = false;
+    OSTimer.timer[id].is_valid = false;
+    OSTimer.timer_num--;
+
+    memset(&OSTimer.timer[id], 0, sizeof(MicroOS_Timer_t));
+
+    return MICROOS_OK;
+}
+
+// 手动重载
+MicroOS_Status_t MicroOS_OSTimer_Reload(uint8_t id)
+{
+    MICROOS_CHECK_OSTIMER_ID(id);
+    MICROOS_CHECK_OSTIMER_VALID(id);
+
+    OSTimer.timer[id].tick = 0;
+
+    return MICROOS_OK;
+}
+
+// OS定时器分发 在ISR中硬件定时分发，不同于OSTASK在while(1)中
+static void MicroOS_OSTimer_Dispatch(void)
+{
+    for (uint32_t i = 0; i < MICROOS_OSTIMER_SIZE; i++)
+    {
+        if (OSTimer.timer[i].is_valid && OSTimer.timer[i].is_start && ++OSTimer.timer[i].tick >= OSTimer.timer[i].period)
+        {
+            OSTimer.timer[i].tick = 0;
+
+            if (!OSTimer.timer[i].is_auto_reload)
+            {
+                OSTimer.timer[i].is_start = false;
+            }
+
+            // 创建的时候就已经非空检查了，没必要再检查一次吧
+            OSTimer.timer[i].callback(OSTimer.timer[i].userData);
+        }
+    }
+}

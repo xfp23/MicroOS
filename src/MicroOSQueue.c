@@ -1,5 +1,5 @@
 #include "MicroOSQueue.h"
-#include "MicroOS_com.h"
+#include "MicroOS_utils.h"
 #include "string.h"
 
 MicroOS_Status_t MicroOSQueue_Init(MicroOSQueue_Obj_t *obj)
