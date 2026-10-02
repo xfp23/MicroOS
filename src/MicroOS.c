@@ -2,7 +2,7 @@
  * @file MicroOS.c
  * @author https://xfp23.github.io
  * @brief MicroOS Source file
- * @version 2.0.1
+ * MICROOS_VERSION_MAJOR
  * @date 2026-07-24
  *
  * @copyright Copyright (c) 2026
@@ -989,7 +989,7 @@ MicroOS_Status_t MicroOS_OSTimer_Reload(uint8_t id)
 // OS定时器分发 在ISR中硬件定时分发，不同于OSTASK在while(1)中
 static void MicroOS_OSTimer_Dispatch(void)
 {
-    for (uint32_t i = 0; i < MICROOS_OSTIMER_SIZE; i++)
+    for (uint32_t i = 0; i < OSTimer.timer_num; i++)
     {
         if (OSTimer.timer[i].is_valid && OSTimer.timer[i].is_start && ++OSTimer.timer[i].tick >= OSTimer.timer[i].period)
         {

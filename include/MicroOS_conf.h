@@ -5,7 +5,7 @@
  * @file    MicroOS_conf.h
  * @author  https://xfp23.github.io
  * @brief   MicroOS configuration file.
- * @version 2.0.1
+ * @version MICROOS_VERSION_MAJOR
  * @date    2025-08-31
  *
  * @details
@@ -23,7 +23,7 @@ extern "C"
  *============================================================================*/
 
 /** MicroOS version */
-#define MICROOS_VERSION_MAJOR                 "2.1.0"
+#define MICROOS_VERSION_MAJOR                 "2.1.1"
 
 
 /*==============================================================================
@@ -36,6 +36,8 @@ extern "C"
 /*==============================================================================
  * OSTimer Module
  *============================================================================*/
+
+ /** OSTimer object pool size */
 #define MICROOS_OSTIMER_SIZE                      1U
 
 /*==============================================================================
