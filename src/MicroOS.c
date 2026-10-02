@@ -543,7 +543,6 @@ MicroOS_Status_t MicroOS_RegisterMessageEvent(uint8_t id, const char *name, Micr
     OSMessageEvent.Event[id].name = (char *)name;
     OSMessageEvent.Event[id].IsUsed = true;
     OSMessageEvent.Event[id].IsRunning = true;
-    // OSMessageEvent.Event[id].TriggerCount = 0;
     memset(&OSMessageEvent.Event[id].Userdata, 0, sizeof(MicroOSQueue_Message_t));
     MicroOSQueue_Init(&OSMessageEvent.Event[id].queue);
 
