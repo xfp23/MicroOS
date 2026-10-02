@@ -159,7 +159,7 @@ MicroOS_Status_t MicroOS_AddTask(uint8_t id, const char *Taskname, MicroOS_TaskF
     {
         MicroOS_Task_Handle->TaskNum++;
     }
-    MicroOS_Task_Handle->Tasks[id].name = Taskname;
+    MicroOS_Task_Handle->Tasks[id].name = (char*)Taskname;
     MicroOS_Task_Handle->Tasks[id].TaskFunction = TaskFunction;
     MicroOS_Task_Handle->Tasks[id].Userdata = Userdata;
     MicroOS_Task_Handle->Tasks[id].Tick = Tick;
@@ -393,7 +393,7 @@ MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, const char *name, MicroOS_Eve
     {
         if (p->id == id)
         {
-            p->name = name;
+            p->name = (char*)name;
             p->EventFunction = EventFunction;
             p->IsRunning = true;
             p->Userdata = (void *)Userdata;
