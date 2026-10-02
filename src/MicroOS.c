@@ -2,11 +2,10 @@
  * @file MicroOS.c
  * @author https://xfp23.github.io
  * @brief MicroOS Source file
- * MICROOS_VERSION_MAJOR
+ * @version \ref MICROOS_VERSION_MAJOR
  * @date 2026-07-24
  *
  * @copyright Copyright (c) 2026
- *
  */
 
 #include "MicroOS.h"
@@ -148,7 +147,7 @@ MicroOS_Status_t MicroOS_delay(uint32_t Ticks)
     return MICROOS_OK;
 }
 
-MicroOS_Status_t MicroOS_AddTask(uint8_t id, char *Taskname, MicroOS_TaskFunction_t TaskFunction, void *Userdata, uint32_t Tick)
+MicroOS_Status_t MicroOS_AddTask(uint8_t id, const char *Taskname, MicroOS_TaskFunction_t TaskFunction, void *Userdata, uint32_t Tick)
 {
     MICROOS_CHECK_ID(id);
     MICROOS_CHECK_PTR(TaskFunction);
@@ -386,7 +385,7 @@ static void MicroOS_OSEvent_Init(void)
     OSEvent.free_event = &OSEvent.EventPools[0]; // 空闲事件链表
 }
 
-MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunction_t EventFunction, const void *Userdata)
+MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, const char *name, MicroOS_EventFunction_t EventFunction, const void *Userdata)
 {
     MICROOS_CHECK_PTR(EventFunction);
     MicroOS_Event_Sub_t *p = OSEvent.active_event;

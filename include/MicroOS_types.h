@@ -5,7 +5,7 @@
  * @file MicroOS_types.h
  * @author (https://xfp23.github.io)
  * @brief Define types
- * @version MICROOS_VERSION_MAJOR
+ * @version \ref MICROOS_VERSION_MAJOR
  * @date 2025-08-31
  *
  * @copyright Copyright (c) 2025

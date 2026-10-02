@@ -5,7 +5,7 @@
  * @file    MicroOS_conf.h
  * @author  https://xfp23.github.io
  * @brief   MicroOS configuration file.
- * @version MICROOS_VERSION_MAJOR
+ * @version \ref MICROOS_VERSION_MAJOR
  * @date    2025-08-31
  *
  * @details

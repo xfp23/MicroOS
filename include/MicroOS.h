@@ -16,7 +16,7 @@
  *   - To speed up scheduling accuracy, ensure MICROOS_FREQ_HZ matches the hardware tick frequency.
  *   - OSdelay uses a static delay task pool; modify OS_DELAY_POOLSIZE to adjust pool size.
  *
- * @version MICROOS_VERSION_MAJOR
+ * @version \ref MICROOS_VERSION_MAJOR
  * @date 2025-08-03
  * @copyright Copyright (c) 2025
  */
@@ -46,7 +46,7 @@ extern MicroOS_Status_t MicroOS_Init(void);
  * @param Userdata User data pointer
  * @return MicroOS_Status_t Returns MICROOS_OK on success or an error code if the event pool is full.
  */
-extern MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunction_t EventFunction, const void *Userdata);
+extern MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, const char *name, MicroOS_EventFunction_t EventFunction, const void *Userdata);
 
 /**
  * @brief Deletes an event from the active event list.
@@ -114,7 +114,7 @@ extern void MicroOS_OSdelay_Remove(uint8_t id);
  * @param Period Task period in milliseconds
  * @return MicroOS_Status_t Status code
  */
-extern MicroOS_Status_t MicroOS_AddTask(uint8_t id, char *Taskname, MicroOS_TaskFunction_t TaskFunction, void *Userdata, uint32_t Ticks);
+extern MicroOS_Status_t MicroOS_AddTask(uint8_t id, const char *Taskname, MicroOS_TaskFunction_t TaskFunction, void *Userdata, uint32_t Ticks);
 
 /**
  * @brief Start the MicroOS scheduler and begin running tasks
@@ -390,7 +390,7 @@ extern MicroOS_Status_t MicroOS_OSTimer_Create(uint8_t id, MicroOS_TimerFunction
  * @retval MICROOS_OK         Timer deleted successfully.
  * @retval Other error codes  Invalid ID.
  */
-MicroOS_Status_t MicroOS_OSTimer_Delete(uint8_t id);
+extern MicroOS_Status_t MicroOS_OSTimer_Delete(uint8_t id);
 
 /**
  * @brief Start an OS timer. The tick counter is reset to 0, so counting always begins
@@ -405,7 +405,7 @@ MicroOS_Status_t MicroOS_OSTimer_Delete(uint8_t id);
  * @retval MICROOS_OK         Timer started successfully.
  * @retval Other error codes  Invalid ID, or the timer has not been created.
  */
-MicroOS_Status_t MicroOS_OSTimer_Start(uint8_t id);
+extern MicroOS_Status_t MicroOS_OSTimer_Start(uint8_t id);
 
 /**
  * @brief Stop an OS timer and reset its tick counter to 0. The timer remains created and
@@ -419,7 +419,7 @@ MicroOS_Status_t MicroOS_OSTimer_Start(uint8_t id);
  * @retval MICROOS_OK         Timer stopped successfully.
  * @retval Other error codes  Invalid ID, or the timer has not been created.
  */
-MicroOS_Status_t MicroOS_OSTimer_Stop(uint8_t id);
+extern MicroOS_Status_t MicroOS_OSTimer_Stop(uint8_t id);
 
 /**
  * @brief Manually reload an OS timer by resetting its tick counter to 0, restarting the
@@ -434,7 +434,7 @@ MicroOS_Status_t MicroOS_OSTimer_Stop(uint8_t id);
  * @retval MICROOS_OK         Tick counter reset successfully.
  * @retval Other error codes  Invalid ID.
  */
-MicroOS_Status_t MicroOS_OSTimer_Reload(uint8_t id);
+extern MicroOS_Status_t MicroOS_OSTimer_Reload(uint8_t id);
 
 #ifdef __cplusplus
 }

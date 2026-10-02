@@ -14,12 +14,14 @@ Key features:
 * Static task table with user-defined IDs (ID also acts as priority — lower ID runs first).
 * **Event** system for simple, stateless asynchronous callbacks (single fixed payload, bound at registration).
 * **Message Event** system for asynchronous callbacks that need a per-trigger payload, backed by a statically-allocated, copy-based FIFO queue — safe to trigger repeatedly (e.g. from an ISR) without losing data.
+* **OSTimer** (tick-ISR-driven software timer): Driven directly by the tick interrupt, with callbacks executed in **interrupt context**. Supports one-shot and periodic modes, suited for short, time-critical callbacks.
 * Tick-based timing system driven by a hardware timer interrupt.
 * Callback-driven OSdelay manager using a static pool to avoid heap fragmentation — no manual polling required.
 * Optional task sleeping mechanism.
 * No dynamic memory anywhere in the library (no `malloc`), suitable for MCUs with small RAM/Flash and for safety-critical (e.g. automotive) codebases.
 
-**Version:** `2.0.1`
+
+**Version:** `2.1.1`
 
 ---
 
@@ -36,6 +38,9 @@ Key features:
 * **Callback-based delay system:** Implemented using a static pool (`OS_DELAY_POOLSIZE`). Unlike a polling-style delay, `MicroOS_OSdelay` registers a callback that the scheduler invokes automatically once the delay expires — no manual "is it done yet" check or manual cleanup is needed.
 * **User-defined frequency:** `MICROOS_FREQ_HZ` must match the hardware tick source.
 * **Independent Queue Module:** `MicroOS` provides a standalone queue library. While it serves the `Message Event` module, it can also be used independently by the user. However, it is governed by the `MICROOS_QUEUE_DEPTH` and `MICROOS_QUEUE_SINGLE_MSG_SIZE` settings; please consider your actual requirements and available **RAM** when determining the appropriate allocation.
+* **OSdelay vs. OSTimer — pick based on where the callback should run:**
+  * **OSdelay** callbacks run in the `MicroOS_StartScheduler()` main loop (not in interrupt context), so they can do heavier work, but the exact firing moment is affected by other tasks. One-shot only.
+  * **OSTimer** callbacks run directly in the tick interrupt, giving precise timing and supporting periodic mode, but the callback **must be short and non-blocking**. For heavier work, have the callback just set a flag or call `MicroOS_TriggerEvent()` / `MicroOS_TriggerMessageEvent()` and let the main loop do the work.
 
 ---
 
@@ -49,7 +54,7 @@ All configuration macros live in `MicroOS_conf.h`.
  *============================================================================*/
 
 /** MicroOS version */
-#define MICROOS_VERSION_MAJOR                 "2.0.2"
+#define MICROOS_VERSION_MAJOR                 "2.1.1"
 
 
 /*==============================================================================
@@ -58,6 +63,13 @@ All configuration macros live in `MicroOS_conf.h`.
 
 /** System tick frequency (Hz) */
 #define MICROOS_FREQ_HZ                       1000U
+
+/*==============================================================================
+ * OSTimer Module
+ *============================================================================*/
+
+ /** OSTimer object pool size */
+#define MICROOS_OSTIMER_SIZE                      1U
 
 
 /*==============================================================================
@@ -132,6 +144,8 @@ This design reflects a trade-off made by the library author to account for the l
 
 By providing a separate queue module, the library allows users to flexibly integrate data buffering capabilities based on specific application needs, avoiding the overhead of additional RAM consumption in subscription scenarios where such buffering is unnecessary. This approach ensures resource usage remains manageable while maintaining the high degree of flexibility regarding memory allocation essential to embedded systems.
 
+`MICROOS_OSTIMER_SIZE` sets the size of the OSTimer pool (the number of timers that can exist at the same time). Valid timer IDs are `0 ~ MICROOS_OSTIMER_SIZE-1`. Each timer uses one static entry; no dynamic memory is used.
+
 ### **3.1 Time Conversion Macros**
 
 Tick/millisecond conversion helpers (defined in `MicroOS_com.h`) are used throughout the API wherever a `Ticks` parameter is documented:
@@ -161,11 +175,7 @@ Initializes the scheduler and clears all task, event, and message event entries.
 ### **4.2 Adding Tasks**
 
 ```c
-MicroOS_Status_t MicroOS_AddTask(uint8_t id,
-                                  char *Taskname,
-                                  MicroOS_TaskFunction_t TaskFunction,
-                                  void *Userdata,
-                                  uint32_t Ticks);
+MicroOS_Status_t MicroOS_AddTask(uint8_t id, char *Taskname, MicroOS_TaskFunction_t TaskFunction, void *Userdata, uint32_t Ticks);
 ```
 
 * **id:** Task ID (0 – `MICROOS_TASK_SIZE`-1). Also acts as priority; lower ID runs first.
@@ -349,27 +359,19 @@ int main(void) {
 ### **4.10 Subscription Module Management**
 
 ```c
-MicroOS_Status_t MicroOS_CreateTopic(uint8_t id,
-                                     const char *topic);
+MicroOS_Status_t MicroOS_CreateTopic(uint8_t id, const char *topic);
 
 MicroOS_Status_t MicroOS_DeleteTopic(uint8_t id);
 
-MicroOS_Status_t MicroOS_Subscribe(uint8_t topic_id,
-                                   uint8_t sub_id,
-                                   const char *name,
-                                   MicroOS_SubscriberFunction_t func);
+MicroOS_Status_t MicroOS_Subscribe(uint8_t topic_id, uint8_t sub_id, const char *name, MicroOS_SubscriberFunction_t func);
 
-MicroOS_Status_t MicroOS_Unsubscribe(uint8_t topic_id,
-                                     uint8_t sub_id);
+MicroOS_Status_t MicroOS_Unsubscribe(uint8_t topic_id, uint8_t sub_id);
 
-MicroOS_Status_t MicroOS_Publish(uint8_t topic_id,
-                                 const void *Userdata);
+MicroOS_Status_t MicroOS_Publish(uint8_t topic_id, const void *Userdata);
 
-MicroOS_Status_t MicroOS_SuspendSubscription(uint8_t topic_id,
-                                             uint8_t sub_id);
+MicroOS_Status_t MicroOS_SuspendSubscription(uint8_t topic_id, uint8_t sub_id);
 
-MicroOS_Status_t MicroOS_ResumeSubscription(uint8_t topic_id,
-                                            uint8_t sub_id);
+MicroOS_Status_t MicroOS_ResumeSubscription(uint8_t topic_id, uint8_t sub_id);
 
 MicroOS_Status_t MicroOS_ClearSubscriptions(uint8_t topic_id);
 
@@ -377,8 +379,7 @@ uint8_t MicroOS_SubscriberCount(uint8_t topic_id);
 
 bool MicroOS_IsTopicSuspended(uint8_t topic_id);
 
-bool MicroOS_IsSubscriptionSuspended(uint8_t topic_id,
-                                     uint8_t sub_id);
+bool MicroOS_IsSubscriptionSuspended(uint8_t topic_id, uint8_t sub_id);
 ```
 
 * `CreateTopic` – Create a publish topic and assign a unique topic ID. The topic serves as the data distribution entry point in the publish-subscribe mechanism. Each topic can contain multiple subscribers.
@@ -415,10 +416,7 @@ int main(void)
 
     MicroOS_CreateTopic(0, "CAN_RX");
 
-    MicroOS_Subscribe(0,
-                      0,
-                      "CAN_Handler",
-                      CAN_UpdateHandler);
+    MicroOS_Subscribe(0,0,"CAN_Handler",CAN_UpdateHandler);
 
     MicroOS_Publish(0, data);
 
@@ -452,13 +450,9 @@ Publish()
 ```c
 MicroOS_Status_t MicroOSQueue_Init(MicroOSQueue_Obj_t *obj);
 
-MicroOS_Status_t MicroOSQueue_Push(MicroOSQueue_Obj_t *obj,
-                                   const void *data,
-                                   size_t size);
+MicroOS_Status_t MicroOSQueue_Push(MicroOSQueue_Obj_t *obj, const void *data, size_t size);
 
-MicroOS_Status_t MicroOSQueue_Pop(MicroOSQueue_Obj_t *obj,
-                                  void *data,
-                                  size_t *size);
+MicroOS_Status_t MicroOSQueue_Pop(MicroOSQueue_Obj_t *obj, void *data, size_t *size);
 
 bool MicroOSQueue_IsEmpty(MicroOSQueue_Obj_t *obj);
 
@@ -540,18 +534,14 @@ uint8_t tx_data[8] = {
     0x88
 };
 
-MicroOSQueue_Push(&queue,
-                  tx_data,
-                  sizeof(tx_data));
+MicroOSQueue_Push(&queue, tx_data, sizeof(tx_data));
 
 
 /* Read message */
 uint8_t rx_data[8];
 size_t len = sizeof(rx_data);
 
-if(MicroOSQueue_Pop(&queue,
-                    rx_data,
-                    &len) == MICROOS_OK)
+if(MicroOSQueue_Pop(&queue, rx_data, &len) == MICROOS_OK)
 {
     // User processes received data
 }
@@ -602,6 +592,96 @@ Typical applications:
 * Message Event message storage.
 * Asynchronous communication between tasks.
 * Interrupt data buffering.
+
+## **4.12 OSTimer Module**
+
+```c
+MicroOS_Status_t MicroOS_OSTimer_Create(uint8_t id, MicroOS_TimerFunction_t timerFunction, uint32_t period, bool is_auto_reload, void *args);
+
+MicroOS_Status_t MicroOS_OSTimer_Delete(uint8_t id);
+
+MicroOS_Status_t MicroOS_OSTimer_Start(uint8_t id);
+
+MicroOS_Status_t MicroOS_OSTimer_Stop(uint8_t id);
+
+MicroOS_Status_t MicroOS_OSTimer_Reload(uint8_t id);
+```
+
+Callback prototype:
+
+```c
+typedef void (*MicroOS_TimerFunction_t)(void *args);
+```
+
+* `OSTimer_Create` – Creates (configures) a timer. The timer is **not** started automatically; call `OSTimer_Start()` to run it.
+  * **id:** Timer ID (0 – `MICROOS_OSTIMER_SIZE`-1).
+  * **timerFunction:** Callback invoked on expiry. Must not be `NULL`.
+  * **period:** Period in ticks (`OS_MS_TICKS(ms)`). Must be greater than 0, otherwise `MICROOS_INVALID_PARAM` is returned.
+  * **is_auto_reload:** `true` for periodic mode (restarts automatically after each expiry); `false` for one-shot mode (stops after the first expiry; the timer stays created and can be started again).
+  * **args:** User argument passed to the callback on each expiry. May be `NULL`.
+* `OSTimer_Delete` – Stops and deletes the timer and clears its whole configuration. The ID can be reused by `Create`. Deleting an already-deleted timer is harmless.
+* `OSTimer_Start` – Starts the timer and resets its tick counter, so counting begins from a full period. Calling it on a running timer restarts it from zero. The timer must have been created.
+* `OSTimer_Stop` – Stops the timer and resets its tick counter. The timer remains created and can be started again. There is no pause/resume; elapsed time is discarded.
+* `OSTimer_Reload` – Manual reload: resets the tick counter to restart the current period **without** changing the running state (it does not start a stopped timer). Typically used as a watchdog-style "feed" to postpone expiry.
+
+> **⚠️ Note: OSTimer callbacks run in tick interrupt context**
+>
+> * Callbacks must be short and non-blocking. Do not call `printf`, `MicroOS_delay()`, blocking mutexes, etc.
+> * A long callback delays the counting of other timers and the response of other interrupts.
+> * For heavier work, trigger an Event / Message Event from the callback and let the main loop handle it.
+> * `Create / Delete / Start / Stop / Reload` called from the main loop share data with the dispatcher running in the ISR. Add critical-section protection if your target platform requires it.
+
+#### **OSdelay vs. OSTimer**
+
+| Feature | `MicroOS_OSdelay` | `MicroOS_OSTimer` |
+|---|---|---|
+| Callback context | Main loop (`MicroOS_StartScheduler`) | Tick interrupt (ISR) |
+| Mode | One-shot only | One-shot / periodic |
+| Timing accuracy | Affected by other tasks in the main loop | Determined by the tick interrupt; more precise |
+| What the callback may do | Can do heavier work | Must be short and non-blocking |
+| Entry after expiry | Freed automatically | One-shot: stopped but kept; periodic: restarts automatically |
+| Pool size | `MICROOS_OSDELAY_POOL_SIZE` | `MICROOS_OSTIMER_SIZE` |
+
+#### **OSTimer Example**
+
+```c
+static void LED_TimerCb(void *args)
+{
+    // Runs in interrupt context; keep it short
+    LED_Toggle();
+}
+
+static void Timeout_TimerCb(void *args)
+{
+    // Only notify the main loop; do not do heavy work here
+    MicroOS_TriggerEvent(0);
+}
+
+int main(void)
+{
+    MicroOS_Init();
+
+    // Periodic timer: toggle the LED every 500 ms
+    MicroOS_OSTimer_Create(0, LED_TimerCb, OS_MS_TICKS(500), true, NULL);
+    MicroOS_OSTimer_Start(0);
+
+    // One-shot timer: 1 s timeout detection
+    MicroOS_OSTimer_Create(1, Timeout_TimerCb, OS_MS_TICKS(1000), false, NULL);
+    MicroOS_OSTimer_Start(1);
+
+    MicroOS_StartScheduler();
+}
+
+// "Feed" the timer when data arrives, postponing the timeout
+void UART_RX_Handler(void)
+{
+    MicroOS_OSTimer_Reload(1);
+}
+
+// When no longer needed
+// MicroOS_OSTimer_Stop(0);
+// MicroOS_OSTimer_Delete(0);
+```
 
 ---
 
@@ -671,10 +751,7 @@ void Comm_Task(void *param)
     if (!started)
     {
         // Register a one-shot delay of 200 ms
-        MicroOS_OSdelay(1,
-                        Comm_DelayHandler,
-                        NULL,
-                        OS_MS_TICKS(200));
+        MicroOS_OSdelay(1,Comm_DelayHandler, NULL, OS_MS_TICKS(200));
 
         started = true;
     }
@@ -720,5 +797,7 @@ MicroOS_TriggerMessageEvent(1, &sample, sizeof(sample));
 * Message event pool size is fixed at compile-time (`MICROOS_MESSAGEEVENT_SIZE`), and can be compiled out entirely via `MICROOS_MESSAGEEVENT_ENABLE`.
 * Task table and delay pool sizes are fixed at compile-time (`MICROOS_TASK_SIZE`, `OS_DELAY_POOLSIZE`).
 * No dynamic memory is used anywhere (tasks, events, message events, delays, queues are all static pools).
+* **OSTimer** callbacks run in tick interrupt context and must be short and non-blocking; a long callback degrades the timing accuracy of other timers and the response of other interrupts.
+* OSTimer pool size is fixed at compile-time (`MICROOS_OSTIMER_SIZE`). Timers have no pause/resume; `Stop` discards the elapsed time.
 
 ---

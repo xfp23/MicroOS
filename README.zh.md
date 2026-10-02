@@ -14,12 +14,13 @@
 * 静态任务表，任务 ID 由用户定义（ID 同时也代表优先级——ID 越小越先运行）。
 * **Event(事件)** 系统：适合简单、无状态的异步回调（单一固定负载，在注册时绑定）。
 * **Message Event(消息事件)** 系统：适合需要每次触发携带不同负载的异步回调，底层由静态分配、拷贝式的 FIFO 队列支撑——即使连续触发（例如在中断里）也不会丢数据。
+* **OSTimer（硬件定时器级软件定时器）**：由 Tick 中断直接驱动，回调在**中断上下文**中执行，支持单次/周期模式，适合对实时性要求较高的短小回调。
 * 基于 Tick 的定时系统，由硬件定时器中断驱动。
 * 回调驱动的 OSdelay 延时管理器，使用静态内存池，避免堆碎片——无需手动轮询。
 * 可选的任务睡眠机制。
 * 整个库不使用任何动态内存（不调用 `malloc`），适合 RAM/Flash 较小的 MCU，也适合车规等安全关键场景的代码库。
 
-**版本：** `2.0.1`
+**版本：** `2.1.1`
 
 ---
 
@@ -36,6 +37,9 @@
 * **回调式延时系统：** 由静态内存池（`OS_DELAY_POOLSIZE`）实现。和轮询式延时不同，`MicroOS_OSdelay` 注册的是一个回调函数，延时到期后由调度器自动调用——不需要手动检查"是否完成"，也不需要手动清理。
 * **用户自定义频率：** `MICROOS_FREQ_HZ` 必须和硬件 tick 源保持一致。
 * **独立的队列模块：** `MicroOS`提供独立的队列库,它既服务于`Message Event`模块，也可以由用户独立使用,不过它受到`MICROOS_QUEUE_DEPTH`和`MICROOS_QUEUE_SINGLE_MSG_SIZE`的管理，请考量你的实际需求与**RAM**大小做出合理的分配
+* **OSDelay 与 OSTimer 该怎么选：**
+  * **OSdelay** 的回调在 `MicroOS_StartScheduler()` 主循环中执行（非中断上下文），可以做较耗时的处理，但触发时刻会受其他任务影响。仅支持一次性延时。
+  * **OSTimer** 的回调直接在 Tick 中断中执行，触发时刻精确，支持周期模式，但回调**必须短小、非阻塞**。如果需要做耗时处理，建议在回调里只置标志位或调用 `MicroOS_TriggerEvent()` / `MicroOS_TriggerMessageEvent()`，把实际工作交给主循环。
 
 ---
 
@@ -49,7 +53,7 @@
  *============================================================================*/
 
 /** MicroOS 版本 */
-#define MICROOS_VERSION_MAJOR                 "2.0.2"
+#define MICROOS_VERSION_MAJOR                 "2.1.1"
 
 
 /*==============================================================================
@@ -58,6 +62,13 @@
 
 /** 系统滴答频率 (Hz) */
 #define MICROOS_FREQ_HZ                       1000U
+
+/*==============================================================================
+ * OSTimer Module
+ *============================================================================*/
+
+ /** OSTimer 池大小 */
+#define MICROOS_OSTIMER_SIZE                      1U
 
 
 /*==============================================================================
@@ -132,6 +143,8 @@
 
 通过提供独立的队列模块，用户可以根据实际应用需求灵活组合数据缓存能力，而无需让所有订阅场景承担额外的 RAM 开销。该方案在保证资源可控的同时，也保留了嵌入式系统中对内存使用的高度灵活性。
 
+`MICROOS_OSTIMER_SIZE` 决定 OSTimer 池的大小（即可同时创建的定时器数量），定时器 ID 取值范围为 `0 ~ MICROOS_OSTIMER_SIZE-1`。每个定时器占用一个静态条目，不使用动态内存。
+
 
 ### **3.1 时间换算宏**
 
@@ -162,11 +175,7 @@ MicroOS_Status_t MicroOS_Init(void);
 ### **4.2 添加任务**
 
 ```c
-MicroOS_Status_t MicroOS_AddTask(uint8_t id,
-                                  char *Taskname,
-                                  MicroOS_TaskFunction_t TaskFunction,
-                                  void *Userdata,
-                                  uint32_t Ticks);
+MicroOS_Status_t MicroOS_AddTask(uint8_t id, char *Taskname, MicroOS_TaskFunction_t TaskFunction, void *Userdata, uint32_t Ticks);
 ```
 
 * **id：** 任务 ID（0 – `MICROOS_TASK_SIZE`-1）。同时也代表优先级，ID 越小越先运行。
@@ -232,10 +241,7 @@ MicroOS_Status_t MicroOS_DeleteTask(uint8_t id);
 ```c
 MicroOS_Status_t MicroOS_delay(uint32_t Ticks);
 
-MicroOS_Status_t MicroOS_OSdelay(uint8_t id,
-                                  MicroOS_OSdelayFunction_t OSdelayFunction,
-                                  const void *Userdata,
-                                  uint32_t Ticks);
+MicroOS_Status_t MicroOS_OSdelay(uint8_t id, MicroOS_OSdelayFunction_t OSdelayFunction, const void *Userdata, uint32_t Ticks);
 ```
 
 * `MicroOS_delay()` – **阻塞式**延时；忙等直到指定的 tick 数过去。会阻塞整个调度器，请谨慎使用。
@@ -247,10 +253,7 @@ MicroOS_Status_t MicroOS_OSdelay(uint8_t id,
 ### **4.8 事件管理**
 
 ```c
-MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id,
-                                        char *name,
-                                        MicroOS_EventFunction_t EventFunction,
-                                        const void *Userdata);
+MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunction_t EventFunction, const void *Userdata);
 
 void MicroOS_DeleteEvent(uint8_t id);
 
@@ -294,9 +297,7 @@ int main(void) {
 ### **4.9 消息事件管理**
 
 ```c
-MicroOS_Status_t MicroOS_RegisterMessageEvent(uint8_t id,
-                                               const char *name,
-                                               MicroOSQueue_EventFunction_t function);
+MicroOS_Status_t MicroOS_RegisterMessageEvent(uint8_t id, const char *name, MicroOSQueue_EventFunction_t function);
 
 MicroOS_Status_t MicroOS_DeleteMessageEvent(uint8_t id);
 
@@ -350,27 +351,19 @@ int main(void) {
 ### **4.10 订阅模块管理**
 
 ```c
-MicroOS_Status_t MicroOS_CreateTopic(uint8_t id,
-                                     const char *topic);
+MicroOS_Status_t MicroOS_CreateTopic(uint8_t id, const char *topic);
 
 MicroOS_Status_t MicroOS_DeleteTopic(uint8_t id);
 
-MicroOS_Status_t MicroOS_Subscribe(uint8_t topic_id,
-                                   uint8_t sub_id,
-                                   const char *name,
-                                   MicroOS_SubscriberFunction_t func);
+MicroOS_Status_t MicroOS_Subscribe(uint8_t topic_id, uint8_t sub_id, const char *name, MicroOS_SubscriberFunction_t func);
 
-MicroOS_Status_t MicroOS_Unsubscribe(uint8_t topic_id,
-                                     uint8_t sub_id);
+MicroOS_Status_t MicroOS_Unsubscribe(uint8_t topic_id, uint8_t sub_id);
 
-MicroOS_Status_t MicroOS_Publish(uint8_t topic_id,
-                                 const void *Userdata);
+MicroOS_Status_t MicroOS_Publish(uint8_t topic_id, const void *Userdata);
 
-MicroOS_Status_t MicroOS_SuspendSubscription(uint8_t topic_id,
-                                             uint8_t sub_id);
+MicroOS_Status_t MicroOS_SuspendSubscription(uint8_t topic_id, uint8_t sub_id);
 
-MicroOS_Status_t MicroOS_ResumeSubscription(uint8_t topic_id,
-                                            uint8_t sub_id);
+MicroOS_Status_t MicroOS_ResumeSubscription(uint8_t topic_id, uint8_t sub_id);
 
 MicroOS_Status_t MicroOS_ClearSubscriptions(uint8_t topic_id);
 
@@ -378,8 +371,7 @@ uint8_t MicroOS_SubscriberCount(uint8_t topic_id);
 
 bool MicroOS_IsTopicSuspended(uint8_t topic_id);
 
-bool MicroOS_IsSubscriptionSuspended(uint8_t topic_id,
-                                     uint8_t sub_id);
+bool MicroOS_IsSubscriptionSuspended(uint8_t topic_id, uint8_t sub_id);
 ```
 
 * `CreateTopic` – 创建一个发布主题，并绑定唯一的主题 ID。主题作为发布订阅机制中的数据分发入口，每个主题可以包含多个订阅者。
@@ -416,10 +408,7 @@ int main(void)
 
     MicroOS_CreateTopic(0, "CAN_RX");
 
-    MicroOS_Subscribe(0,
-                      0,
-                      "CAN_Handler",
-                      CAN_UpdateHandler);
+    MicroOS_Subscribe(0, 0, "CAN_Handler", CAN_UpdateHandler);
 
     MicroOS_Publish(0, data);
 
@@ -453,13 +442,9 @@ Publish()
 ```c
 MicroOS_Status_t MicroOSQueue_Init(MicroOSQueue_Obj_t *obj);
 
-MicroOS_Status_t MicroOSQueue_Push(MicroOSQueue_Obj_t *obj,
-                                   const void *data,
-                                   size_t size);
+MicroOS_Status_t MicroOSQueue_Push(MicroOSQueue_Obj_t *obj, const void *data, size_t size);
 
-MicroOS_Status_t MicroOSQueue_Pop(MicroOSQueue_Obj_t *obj,
-                                  void *data,
-                                  size_t *size);
+MicroOS_Status_t MicroOSQueue_Pop(MicroOSQueue_Obj_t *obj, void *data, size_t *size);
 
 bool MicroOSQueue_IsEmpty(MicroOSQueue_Obj_t *obj);
 
@@ -541,18 +526,14 @@ uint8_t tx_data[8] = {
     0x88
 };
 
-MicroOSQueue_Push(&queue,
-                  tx_data,
-                  sizeof(tx_data));
+MicroOSQueue_Push(&queue, tx_data, sizeof(tx_data));
 
 
 /* 读取消息 */
 uint8_t rx_data[8];
 size_t len = sizeof(rx_data);
 
-if(MicroOSQueue_Pop(&queue,
-                    rx_data,
-                    &len) == MICROOS_OK)
+if(MicroOSQueue_Pop(&queue, rx_data, &len) == MICROOS_OK)
 {
     // 用户处理接收到的数据
 }
@@ -603,6 +584,96 @@ if(MicroOSQueue_Pop(&queue,
 * Message Event 消息存储。
 * 任务间异步通信。
 * 中断数据缓冲。
+
+## **4.12 OSTimer 模块**
+
+```c
+MicroOS_Status_t MicroOS_OSTimer_Create(uint8_t id, MicroOS_TimerFunction_t timerFunction, uint32_t period, bool is_auto_reload, void *args);
+
+MicroOS_Status_t MicroOS_OSTimer_Delete(uint8_t id);
+
+MicroOS_Status_t MicroOS_OSTimer_Start(uint8_t id);
+
+MicroOS_Status_t MicroOS_OSTimer_Stop(uint8_t id);
+
+MicroOS_Status_t MicroOS_OSTimer_Reload(uint8_t id);
+```
+
+回调函数原型：
+
+```c
+typedef void (*MicroOS_TimerFunction_t)(void *args);
+```
+
+* `OSTimer_Create` – 创建（配置）一个定时器，**不会自动启动**，需调用 `OSTimer_Start()`。
+  * **id：** 定时器 ID（0 – `MICROOS_OSTIMER_SIZE`-1）。
+  * **timerFunction：** 到期回调，不能为 `NULL`。
+  * **period：** 周期，单位为 ticks（`OS_MS_TICKS(ms)`），必须大于 0，否则返回 `MICROOS_INVALID_PARAM`。
+  * **is_auto_reload：** `true` 为周期模式，到期后自动重新计时；`false` 为单次模式，到期后自动停止（定时器仍保持已创建状态，可再次 `Start`）。
+  * **args：** 每次到期时传给回调的用户参数，可为 `NULL`。
+* `OSTimer_Delete` – 停止并删除定时器，清除其全部配置，ID 可重新用于 `Create`。重复删除是安全的。
+* `OSTimer_Start` – 启动定时器，并将计数清零，从完整的一个周期开始计时。对正在运行的定时器调用会使其重新开始计时。定时器必须已创建。
+* `OSTimer_Stop` – 停止定时器并将计数清零。定时器保持已创建状态，可再次 `Start`。注意这里没有"暂停/继续"，已经过去的时间会被丢弃。
+* `OSTimer_Reload` – 手动重载：将计数清零，重新开始当前周期，**不改变**运行状态（不会启动已停止的定时器）。常用于"喂狗"式的超时检测。
+
+> **⚠️ 注意：OSTimer 的回调运行在 Tick 中断上下文中**
+>
+> * 回调必须短小、非阻塞，不要调用 `printf`、`MicroOS_delay()`、阻塞式互斥等函数。
+> * 回调耗时过长会拖慢其他定时器的计数和其他中断的响应。
+> * 需要做耗时处理时，请在回调中触发 Event / Message Event，把工作交给主循环。
+> * 主循环中调用 `Create / Delete / Start / Stop / Reload` 与中断中的分发共享同一份数据，请根据目标平台决定是否需要加临界区保护。
+
+#### **OSdelay 与 OSTimer 对比**
+
+| 特性 | `MicroOS_OSdelay` | `MicroOS_OSTimer` |
+|---|---|---|
+| 回调执行上下文 | 主循环（`MicroOS_StartScheduler`） | Tick 中断（ISR） |
+| 模式 | 仅一次性 | 单次 / 周期 |
+| 触发精度 | 受主循环中其他任务影响 | 由 Tick 中断决定，较精确 |
+| 回调中允许的操作 | 可做较耗时处理 | 必须短小、非阻塞 |
+| 到期后条目 | 自动释放 | 单次模式：停止但保留；周期模式：自动重新计时 |
+| 条目数量 | `MICROOS_OSDELAY_POOL_SIZE` | `MICROOS_OSTIMER_SIZE` |
+
+#### **OSTimer 示例**
+
+```c
+static void LED_TimerCb(void *args)
+{
+    // 在中断上下文中执行，保持简短
+    LED_Toggle();
+}
+
+static void Timeout_TimerCb(void *args)
+{
+    // 超时后只通知主循环，不在这里做耗时处理
+    MicroOS_TriggerEvent(0);
+}
+
+int main(void)
+{
+    MicroOS_Init();
+
+    // 周期定时器：每 500ms 翻转一次 LED
+    MicroOS_OSTimer_Create(0, LED_TimerCb, OS_MS_TICKS(500), true, NULL);
+    MicroOS_OSTimer_Start(0);
+
+    // 单次定时器：1s 超时检测
+    MicroOS_OSTimer_Create(1, Timeout_TimerCb, OS_MS_TICKS(1000), false, NULL);
+    MicroOS_OSTimer_Start(1);
+
+    MicroOS_StartScheduler();
+}
+
+// 在收到数据时"喂狗"，推迟超时
+void UART_RX_Handler(void)
+{
+    MicroOS_OSTimer_Reload(1);
+}
+
+// 不再需要时
+// MicroOS_OSTimer_Stop(0);
+// MicroOS_OSTimer_Delete(0);
+```
 
 ---
 
@@ -672,10 +743,7 @@ void Comm_Task(void *param)
     if (!started)
     {
         // 注册一个 200ms 的一次性延时任务
-        MicroOS_OSdelay(1,
-                        Comm_DelayHandler,
-                        NULL,
-                        OS_MS_TICKS(200));
+        MicroOS_OSdelay(1, Comm_DelayHandler, NULL, OS_MS_TICKS(200));
 
         started = true;
     }
@@ -721,5 +789,7 @@ MicroOS_TriggerMessageEvent(1, &sample, sizeof(sample));
 * 消息事件池大小在编译期由 `MICROOS_MESSAGEEVENT_SIZE` 固定，也可以通过 `MICROOS_MESSAGEEVENT_ENABLE` 整体裁剪掉。
 * 任务表和延时池大小在编译期由 `MICROOS_TASK_SIZE`、`OS_DELAY_POOLSIZE` 固定。
 * 全程不使用任何动态内存（任务、事件、消息事件、延时、队列均为静态内存池）。
+* **OSTimer** 的回调运行在 Tick 中断上下文中，必须短小、非阻塞；回调过长会影响其他定时器的计数精度和系统中断响应。
+* OSTimer 池大小在编译期由 `MICROOS_OSTIMER_SIZE` 固定。定时器不支持暂停/继续，`Stop` 会丢弃已计时间。
 
 ---

@@ -2,10 +2,10 @@
 #define MICROOS_UTILS_H
 
 /**
- * @file MicroOS_types.h
+ * @file MicroOS_utils.h
  * @author (https://xfp23.github.io)
- * @brief Define Tool Macros
- * @version 0.1
+ * @brief Define Utils Macros
+ * @version \ref MICROOS_VERSION_MAJOR
  * @date 2025-08-31
  *
  * @copyright Copyright (c) 2025
