@@ -246,7 +246,6 @@ MicroOS_Status_t MicroOS_OSdelay(MicroOS_OSdelayFunction_t OSdelayFunction, cons
 
 * `MicroOS_delay()` – **阻塞式**延时；忙等直到指定的 tick 数过去。会阻塞整个调度器，请谨慎使用。
 * `MicroOS_OSdelay()` – **非阻塞**、回调式延时。注册一个 `Ticks` 长度的延时。延时到期后，调度器会在 `MicroOS_StartScheduler()` 主循环中自动调用 `OSdelayFunction(Userdata)`，之后该内存池条目会被自动释放——不需要手动检查"是否完成"，也不需要手动移除。
-* `MicroOS_OSdelay_Remove()` - 移除或提前取消一个延时
 
 ---
 
@@ -727,8 +726,6 @@ void Sensor_Task(void *param) {
 
 `MicroOS_OSdelay()` 用于注册一个一次性延时任务。延时时间到达后，MicroOS 会自动执行对应的回调函数，无需用户轮询或阻塞等待。
 
-如果需要在延时结束前取消该任务，可调用 `MicroOS_OSdelay_Remove()`。
-
 ```c
 void Comm_DelayHandler(void *userdata)
 {
@@ -743,20 +740,13 @@ void Comm_Task(void *param)
     if (!started)
     {
         // 注册一个 200ms 的一次性延时任务
-        MicroOS_OSdelay(1, Comm_DelayHandler, NULL, OS_MS_TICKS(200));
+        MicroOS_OSdelay(Comm_DelayHandler, NULL, OS_MS_TICKS(200));
 
         started = true;
     }
 
     // 其他任务逻辑……
 }
-```
-
-若需要提前取消该延时任务：
-
-```c
-// 取消 ID 为 1 的延时任务
-MicroOS_OSdelay_Remove(1);
 ```
 
 `MicroOS_OSdelay()` 采用**非阻塞**方式实现延时，不会占用 CPU 进行等待，也不会阻塞当前任务。延时时间到达后，对应回调函数仅执行一次，如需再次延时，需重新调用 `MicroOS_OSdelay()` 进行注册。

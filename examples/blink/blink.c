@@ -24,7 +24,7 @@ void Task_DelayExample(void *param) {
     static bool started = false;
     if (!started) {
         // 设置延时 500ms
-        MicroOS_OSdelay(0, Delay_Callback, NULL, OS_MS_TICKS(500));
+        MicroOS_OSdelay(Delay_Callback, NULL, OS_MS_TICKS(500));
         started = true;
         printf("Delay started\n");
     }
