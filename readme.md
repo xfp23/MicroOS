@@ -54,7 +54,7 @@ All configuration macros live in `MicroOS_conf.h`.
  *============================================================================*/
 
 /** MicroOS version */
-#define MICROOS_VERSION_MAJOR                 "2.1.1"
+#define MICROOS_VERSION_MAJOR                 "2.2.0"
 
 
 /*==============================================================================
