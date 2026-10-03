@@ -34,7 +34,7 @@ static void MicroOS_OSEvent_Init(void);
 
 static void MicroOS_DispatchAllEvents(void);
 
-static void MicroOS_OSdelay_StartScheduler(void);
+static void MicroOS_OSdelay_Scheduler(void);
 
 #if MICROOS_MESSAGEEVENT_ENABLE
 
@@ -83,7 +83,7 @@ void MicroOS_StartScheduler(void)
 
         MicroOS_DispatchAllEvents();
 
-        MicroOS_OSdelay_StartScheduler();
+        MicroOS_OSdelay_Scheduler();
 
 #if MICROOS_MESSAGEEVENT_ENABLE
         MicroOS_MessageEventDispatch();
@@ -159,7 +159,7 @@ MicroOS_Status_t MicroOS_AddTask(uint8_t id, const char *Taskname, MicroOS_TaskF
     {
         MicroOS_Task_Handle->TaskNum++;
     }
-    MicroOS_Task_Handle->Tasks[id].name = (char*)Taskname;
+    MicroOS_Task_Handle->Tasks[id].name = (char *)Taskname;
     MicroOS_Task_Handle->Tasks[id].TaskFunction = TaskFunction;
     MicroOS_Task_Handle->Tasks[id].Userdata = Userdata;
     MicroOS_Task_Handle->Tasks[id].Tick = Tick;
@@ -276,37 +276,28 @@ static void MicroOS_OSdelay_Init(void)
 }
 
 // 添加/更新任务
-MicroOS_Status_t MicroOS_OSdelay(uint8_t id, MicroOS_OSdelayFunction_t OSdelayFunction, const void *Userdata, uint32_t Ticks)
+MicroOS_Status_t MicroOS_OSdelay(MicroOS_OSdelayFunction_t OSdelayFunction, const void *Userdata, uint32_t Ticks)
 {
     MICROOS_CHECK_PTR(OSdelayFunction);
 
-    MicroOS_OSdelay_Sub_t *p = OSdelay.active_delay;
-
-    // 检查是否已有该 ID
-    while (p)
+    if (!OSdelay.free_delay)
     {
-        if (p->id == id)
-        {
-            return MICROOS_ALREADY_EXIST;
-        }
-        p = p->next;
+        return MICROOS_BUSY; // 无空闲节点
     }
 
-    // 没有则从 OSdelay.free_delay 取节点
-    if (!OSdelay.free_delay)
-        return MICROOS_BUSY; // 没空闲节点了
-
+    // 从空闲链表摘下节点
     MicroOS_OSdelay_Sub_t *node = OSdelay.free_delay;
     OSdelay.free_delay = OSdelay.free_delay->next;
 
-    node->id = id;
     node->tick = Ticks;
-    node->IsTimeout = false;
+    node->IsTimeout = (Ticks == 0);
     node->OSdelayFunction = OSdelayFunction;
     node->Userdata = (void *)Userdata;
 
     node->next = OSdelay.active_delay;
     OSdelay.active_delay = node;
+
+    OSdelay.OSdelayNum++;
 
     return MICROOS_OK;
 }
@@ -329,46 +320,40 @@ static void MicroOS_OSdelay_TickHandler(void)
     }
 }
 
-void MicroOS_OSdelay_Remove(uint8_t id)
+static void MicroOS_OSdelay_RemoveNode(MicroOS_OSdelay_Sub_t **pprev)
+{
+    MicroOS_OSdelay_Sub_t *target = *pprev;
+
+    *pprev = target->next;
+
+    memset((void *)target, 0, sizeof(MicroOS_OSdelay_Sub_t));
+
+    target->next = OSdelay.free_delay;
+    OSdelay.free_delay = target;
+}
+
+static void MicroOS_OSdelay_Scheduler(void)
 {
     MicroOS_OSdelay_Sub_t **pp = &OSdelay.active_delay;
+
     while (*pp)
     {
-        if ((*pp)->id == id)
+        MicroOS_OSdelay_Sub_t *p = *pp;
+
+        if (p->IsTimeout)
         {
-            MicroOS_OSdelay_Sub_t *tmp = *pp;
-            *pp = (*pp)->next;
+            if (p->OSdelayFunction != NULL)
+            {
+                p->OSdelayFunction(p->Userdata);
+            }
 
-            // 清零节点
-            memset((void *)tmp, 0, sizeof(MicroOS_OSdelay_Sub_t));
-
-            // 放回 OSdelay.free_delay
-            tmp->next = OSdelay.free_delay;
-            OSdelay.free_delay = tmp;
-            return;
+            OSdelay.OSdelayNum--;
+            MicroOS_OSdelay_RemoveNode(pp);
         }
         else
         {
             pp = &(*pp)->next;
         }
-    }
-}
-
-static void MicroOS_OSdelay_StartScheduler(void)
-{
-    MicroOS_OSdelay_Sub_t *p = OSdelay.active_delay;
-
-    while (p)
-    {
-        if (p->IsTimeout)
-        {
-            p->OSdelayFunction(p->Userdata);
-            p->IsTimeout = false;
-            p->Userdata = NULL;
-            MicroOS_OSdelay_Remove(p->id);
-        }
-
-        p = p->next;
     }
 }
 
@@ -393,7 +378,7 @@ MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, const char *name, MicroOS_Eve
     {
         if (p->id == id)
         {
-            p->name = (char*)name;
+            p->name = (char *)name;
             p->EventFunction = EventFunction;
             p->IsRunning = true;
             p->Userdata = (void *)Userdata;

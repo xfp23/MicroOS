@@ -21,7 +21,7 @@ Key features:
 * No dynamic memory anywhere in the library (no `malloc`), suitable for MCUs with small RAM/Flash and for safety-critical (e.g. automotive) codebases.
 
 
-**Version:** `2.1.1`
+**Version:** `2.2.0`
 
 ---
 
@@ -241,14 +241,11 @@ MicroOS_Status_t MicroOS_DeleteTask(uint8_t id);
 ```c
 MicroOS_Status_t MicroOS_delay(uint32_t Ticks);
 
-MicroOS_Status_t MicroOS_OSdelay(uint8_t id,
-                                  MicroOS_OSdelayFunction_t OSdelayFunction,
-                                  const void *Userdata,
-                                  uint32_t Ticks);
+MicroOS_Status_t MicroOS_OSdelay(MicroOS_OSdelayFunction_t OSdelayFunction, const void *Userdata, uint32_t Ticks);
 ```
 
 * `MicroOS_delay()` – **Blocking** delay; busy-waits until the given number of ticks has elapsed. Blocks the entire scheduler, so use sparingly.
-* `MicroOS_OSdelay()` – **Non-blocking**, callback-based delay. Registers (or re-arms, if `id` already exists) a delay of `Ticks`. When the delay expires, the scheduler automatically calls `OSdelayFunction(Userdata)` from within `MicroOS_StartScheduler()`'s main loop, and the pool entry is freed automatically afterward — no manual "done" check or manual removal is required.
+* `MicroOS_OSdelay()` – **Non-blocking**, callback-based delay. Registers a delay of `Ticks`. When the delay expires, the scheduler automatically calls `OSdelayFunction(Userdata)` from within `MicroOS_StartScheduler()`'s main loop, and the pool entry is freed automatically afterward — no manual "done" check or manual removal is required.
 * `MicroOS_OSdelay_Remove()` - Removes or cancels a delay early.
 
 ---
@@ -256,10 +253,7 @@ MicroOS_Status_t MicroOS_OSdelay(uint8_t id,
 ### **4.8 Event Management**
 
 ```c
-MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id,
-                                        char *name,
-                                        MicroOS_EventFunction_t EventFunction,
-                                        const void *Userdata);
+MicroOS_Status_t MicroOS_RegisterEvent(uint8_t id, char *name, MicroOS_EventFunction_t EventFunction, const void *Userdata);
 
 void MicroOS_DeleteEvent(uint8_t id);
 
@@ -303,9 +297,7 @@ int main(void) {
 ### **4.9 Message Event Management**
 
 ```c
-MicroOS_Status_t MicroOS_RegisterMessageEvent(uint8_t id,
-                                               const char *name,
-                                               MicroOSQueue_EventFunction_t function);
+MicroOS_Status_t MicroOS_RegisterMessageEvent(uint8_t id, const char *name, MicroOSQueue_EventFunction_t function);
 
 MicroOS_Status_t MicroOS_DeleteMessageEvent(uint8_t id);
 
@@ -523,16 +515,7 @@ MicroOSQueue_Init(&queue);
 
 
 /* Write message */
-uint8_t tx_data[8] = {
-    0x11,
-    0x22,
-    0x33,
-    0x44,
-    0x55,
-    0x66,
-    0x77,
-    0x88
-};
+uint8_t tx_data[8] = { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88 };
 
 MicroOSQueue_Push(&queue, tx_data, sizeof(tx_data));
 

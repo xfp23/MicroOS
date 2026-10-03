@@ -103,7 +103,7 @@ typedef volatile MicroOS_Task_t *MicroOS_Task_Handle_t;
  */
 typedef struct MicroOS_OSdelay_Sub_t
 {
-    uint8_t id;              /**< Delay task ID */
+    // uint8_t id;              /**< Delay task ID */
     volatile uint32_t tick;  /**< Delay time in milliseconds */
     volatile bool IsTimeout; /**< Timeout status */
     void (*OSdelayFunction)(void *);
@@ -116,7 +116,7 @@ typedef struct
     MicroOS_OSdelay_Sub_t delay_pool[MICROOS_OSDELAY_POOL_SIZE];
     MicroOS_OSdelay_Sub_t *free_delay;
     MicroOS_OSdelay_Sub_t *active_delay;
-    uint8_t OSdelayNum;
+    volatile uint32_t OSdelayNum;
 
 } MicroOS_OSdelay_t;
 

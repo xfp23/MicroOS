@@ -53,7 +53,7 @@
  *============================================================================*/
 
 /** MicroOS 版本 */
-#define MICROOS_VERSION_MAJOR                 "2.1.1"
+#define MICROOS_VERSION_MAJOR                 "2.2.0"
 
 
 /*==============================================================================
@@ -241,11 +241,11 @@ MicroOS_Status_t MicroOS_DeleteTask(uint8_t id);
 ```c
 MicroOS_Status_t MicroOS_delay(uint32_t Ticks);
 
-MicroOS_Status_t MicroOS_OSdelay(uint8_t id, MicroOS_OSdelayFunction_t OSdelayFunction, const void *Userdata, uint32_t Ticks);
+MicroOS_Status_t MicroOS_OSdelay(MicroOS_OSdelayFunction_t OSdelayFunction, const void *Userdata, uint32_t Ticks);
 ```
 
 * `MicroOS_delay()` – **阻塞式**延时；忙等直到指定的 tick 数过去。会阻塞整个调度器，请谨慎使用。
-* `MicroOS_OSdelay()` – **非阻塞**、回调式延时。注册（若 `id` 已存在则重新装载）一个 `Ticks` 长度的延时。延时到期后，调度器会在 `MicroOS_StartScheduler()` 主循环中自动调用 `OSdelayFunction(Userdata)`，之后该内存池条目会被自动释放——不需要手动检查"是否完成"，也不需要手动移除。
+* `MicroOS_OSdelay()` – **非阻塞**、回调式延时。注册一个 `Ticks` 长度的延时。延时到期后，调度器会在 `MicroOS_StartScheduler()` 主循环中自动调用 `OSdelayFunction(Userdata)`，之后该内存池条目会被自动释放——不需要手动检查"是否完成"，也不需要手动移除。
 * `MicroOS_OSdelay_Remove()` - 移除或提前取消一个延时
 
 ---
