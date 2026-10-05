@@ -21,7 +21,7 @@ Key features:
 * No dynamic memory anywhere in the library (no `malloc`), suitable for MCUs with small RAM/Flash and for safety-critical (e.g. automotive) codebases.
 
 
-**Version:** `2.2.0`
+**Version:** `2.2.1`
 
 ---
 
@@ -54,7 +54,7 @@ All configuration macros live in `MicroOS_conf.h`.
  *============================================================================*/
 
 /** MicroOS version */
-#define MICROOS_VERSION_MAJOR                 "2.2.0"
+#define MICROOS_VERSION                 "2.2.1"
 
 
 /*==============================================================================

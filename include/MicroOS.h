@@ -16,7 +16,7 @@
  *   - To speed up scheduling accuracy, ensure MICROOS_FREQ_HZ matches the hardware tick frequency.
  *   - OSdelay uses a static delay task pool; modify OS_DELAY_POOLSIZE to adjust pool size.
  *
- * @version \ref MICROOS_VERSION_MAJOR
+ * @version \ref MICROOS_VERSION
  * @date 2025-08-03
  * @copyright Copyright (c) 2025
  */

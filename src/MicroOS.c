@@ -2,7 +2,7 @@
  * @file MicroOS.c
  * @author https://xfp23.github.io
  * @brief MicroOS Source file
- * @version \ref MICROOS_VERSION_MAJOR
+ * @version \ref MICROOS_VERSION
  * @date 2026-07-24
  *
  * @copyright Copyright (c) 2026

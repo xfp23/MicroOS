@@ -5,7 +5,7 @@
  * @file MicroOS_utils.h
  * @author (https://xfp23.github.io)
  * @brief Define Utils Macros
- * @version \ref MICROOS_VERSION_MAJOR
+ * @version \ref MICROOS_VERSION
  * @date 2025-08-31
  *
  * @copyright Copyright (c) 2025
